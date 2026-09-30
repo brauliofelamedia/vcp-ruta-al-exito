@@ -1,0 +1,16 @@
+{
+  "name": "vcp-ruta-del-exito",
+  "version": "1.0.0",
+  "description": "Ruta interactiva del éxito para estudiantes de VendeComoPro con persistencia en Supabase y sincronización con GoHighLevel",
+  "main": "api/progress.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "npx serve public"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7"
+  }
+}
