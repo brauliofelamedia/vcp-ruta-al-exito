@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+vendor
+node_modules
+legacy
+laravel-staging
+VCP_Ruta_Exito_Para_Jorge_2026-09-18
+tests
+storage/logs

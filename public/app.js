@@ -30,6 +30,8 @@ let currentStudent={
   email:(urlParams.get('email')||localStorage.getItem('vcp-student-email')||'').trim().toLowerCase(),
   name:(urlParams.get('name')||localStorage.getItem('vcp-student-name')||'').trim()
 };
+const AUTH_TOKEN_KEY='vcp-auth-token';
+let authToken=localStorage.getItem(AUTH_TOKEN_KEY)||'';
 if(currentStudent.email)localStorage.setItem('vcp-student-email',currentStudent.email);
 if(currentStudent.name)localStorage.setItem('vcp-student-name',currentStudent.name);
 if(urlParams.has('system')&&['medium','elite'].includes(urlParams.get('system')))state.system=urlParams.get('system');
@@ -62,12 +64,13 @@ function getStats(){
 }
 
 function updateSyncStatus(status){
-  const dot=$('sync-dot'),btn=$('user-btn'),note=$('save-note');
+  const dot=$('sync-dot'),btn=$('user-btn'),note=$('save-note'),logoutBtn=$('logout-btn');
   if(!dot||!btn)return;
   dot.className='sync-dot '+(status||'');
-  if(currentStudent.email){
+  if(authToken&&currentStudent.email){
     btn.textContent=currentStudent.name||currentStudent.email;
-    btn.title=`Conectado como ${currentStudent.email} (Click para cambiar)`;
+    btn.title=`Conectado como ${currentStudent.email}`;
+    if(logoutBtn)logoutBtn.style.display='inline-block';
     if(note){
       if(status==='synced')note.textContent=`🟢 Conectado como ${currentStudent.email} · Tu avance se sincroniza con tus coaches en GoHighLevel.`;
       else if(status==='syncing')note.textContent=`🟡 Guardando cambios en la nube...`;
@@ -75,20 +78,20 @@ function updateSyncStatus(status){
     }
   }else{
     btn.textContent='Conectar mi cuenta';
-    btn.title='Conecta tu correo de estudiante para guardar en la nube';
+    btn.title='Registrar o iniciar sesión para sincronizar tu avance';
+    if(logoutBtn)logoutBtn.style.display='none';
     if(note)note.textContent='Tu avance se guarda solo en este navegador. Conecta tu cuenta arriba para sincronizar con tus coaches.';
   }
 }
 
 async function syncTaskToServer(index,id,checked){
-  if(!currentStudent.email)return;
+  if(!authToken)return;
   updateSyncStatus('syncing');
   try{
-    const res=await fetch('/api/progress',{
+    const res=await fetch('/api/v1/me/progress',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
       body:JSON.stringify({
-        email:currentStudent.email,
         name:currentStudent.name,
         system:state.system,
         residence:state.residence,
@@ -106,31 +109,30 @@ async function syncTaskToServer(index,id,checked){
 }
 
 async function syncProfileToServer(){
-  if(!currentStudent.email)return;
+  if(!authToken)return;
   updateSyncStatus('syncing');
   try{
-    await fetch('/api/progress',{
+    const res=await fetch('/api/v1/me/progress',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
       body:JSON.stringify({
-        email:currentStudent.email,
         name:currentStudent.name,
         system:state.system,
         residence:state.residence,
         stats:getStats()
       })
     });
-    updateSyncStatus('synced');
+    updateSyncStatus(res.ok?'synced':'error');
   }catch(e){
     updateSyncStatus('error');
   }
 }
 
 async function fetchProgressFromServer(){
-  if(!currentStudent.email){updateSyncStatus('');return;}
+  if(!authToken){updateSyncStatus('');return;}
   updateSyncStatus('syncing');
   try{
-    const res=await fetch(`/api/progress?email=${encodeURIComponent(currentStudent.email)}`);
+    const res=await fetch('/api/v1/me/progress',{headers:{'Authorization':`Bearer ${authToken}`}});
     const data=await res.json();
     if(data.ok&&data.checks){
       state.checks={...state.checks,...data.checks};
@@ -159,12 +161,13 @@ function escapeHTML(str){return String(str).replace(/[&<>"']/g,c=>({'&':'&amp;',
 function taskKey(stage,id){return `${state.system}:${stage}:${id}`;}
 function tasksFor(index){const s=STAGES[index];return s?(typeof s.tasks==='function'?s.tasks(state.residence):s.tasks):[];}
 function completed(index){const t=tasksFor(index);return t.length>0&&t.every(([id])=>state.checks[taskKey(index,id)]===true);}
+function unlockedStation(){const next=TITLES.findIndex((_,i)=>!completed(i));return next===-1?11:next;}
 function notice(text){$('notice').textContent=text;$('notice').classList.add('visible');setTimeout(()=>$('notice').classList.remove('visible'),2600);}
-function selectStage(index,focus=false){if(!Number.isInteger(index)||index<0||index>11)throw new Error('Estación inválida');state.selected=index;trailOpen=index;save();render();if(focus){const target=state.view==='trail'?$('trail-toggle-'+index):$('detail');target.focus({preventScroll:true});target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});}}
-function setTask(index,id,checked){if(!tasksFor(index).some(([taskId])=>taskId===id)||typeof checked!=='boolean')throw new Error('Tarea inválida');const before=completed(index);state.checks[taskKey(index,id)]=checked;save();renderProgress();renderStations();renderMilestones();document.querySelectorAll('input[data-task]').forEach(input=>{if(Number(input.dataset.taskStage)===index&&input.dataset.task===id){input.checked=checked;input.closest('.task').classList.toggle('checked',checked);}});updateTrailProgress();document.querySelectorAll(`[data-task-progress="${index}"]`).forEach(el=>el.textContent=taskStatus(index));if(!before&&completed(index))notice('¡Estación completa! Continúa con tu siguiente misión.');syncTaskToServer(index,id,checked);}
+function selectStage(index,focus=false){if(!Number.isInteger(index)||index<0||index>11)throw new Error('Estación inválida');if(index>unlockedStation()){notice(`Completa la estación ${unlockedStation()+1} para desbloquear esta misión.`);return;}state.selected=index;trailOpen=index;save();render();if(focus){const target=state.view==='trail'?$('trail-toggle-'+index):$('detail');target.focus({preventScroll:true});target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});}}
+function setTask(index,id,checked){if(!tasksFor(index).some(([taskId])=>taskId===id)||typeof checked!=='boolean')throw new Error('Tarea inválida');if(index>unlockedStation()){notice(`Completa la estación ${unlockedStation()+1} antes de marcar tareas posteriores.`);render();return;}const before=completed(index);state.checks[taskKey(index,id)]=checked;save();renderProgress();renderStations();renderMilestones();document.querySelectorAll('input[data-task]').forEach(input=>{if(Number(input.dataset.taskStage)===index&&input.dataset.task===id){input.checked=checked;input.closest('.task').classList.toggle('checked',checked);}});updateTrailProgress();document.querySelectorAll(`[data-task-progress="${index}"]`).forEach(el=>el.textContent=taskStatus(index));if(!before&&completed(index))notice('¡Estación completa! Continúa con tu siguiente misión.');syncTaskToServer(index,id,checked);}
 function link(label,key){const href=key==='course'?URLS[state.system]:URLS[key];return `<a class="button secondary" href="${href}" target="_blank" rel="noopener noreferrer">${escapeHTML(label)} ↗</a>`;}
 function renderProgress(){const count=TITLES.filter((_,i)=>completed(i)).length;const tasks=TITLES.reduce((n,_,i)=>n+tasksFor(i).filter(([id])=>state.checks[taskKey(i,id)]).length,0);$('progress-label').textContent=`${count} de 12 estaciones completas`;$('task-count').textContent=`${tasks} tareas completadas`;$('progress').value=count;}
-function renderStations(){$('stations').innerHTML=TITLES.map((title,i)=>`<button type="button" class="station ${completed(i)?'complete':''}" data-stage="${i}" aria-current="${state.selected===i}"><span class="number">${completed(i)?'✓':String(i+1).padStart(2,'0')}</span><span>${escapeHTML(title)}<small>${completed(i)?'Completada':state.selected===i?'Estás aquí':'Ver misión'}</small></span></button>`).join('');$('map-nodes').innerHTML=TITLES.map((title,i)=>`<button type="button" class="map-node ${completed(i)?'complete':''}" style="left:${POSITIONS[i][0]}%;top:${POSITIONS[i][1]}%" data-stage="${i}" title="${i+1}. ${escapeHTML(title)}" aria-label="Estación ${i+1}: ${escapeHTML(title)}" aria-current="${state.selected===i}">${completed(i)?'✓':i+1}</button>`).join('');}
+function renderStations(){const available=unlockedStation();$('stations').innerHTML=TITLES.map((title,i)=>`<button type="button" class="station ${completed(i)?'complete':''}" data-stage="${i}" aria-current="${state.selected===i}" ${i>available?'disabled':''}><span class="number">${completed(i)?'✓':String(i+1).padStart(2,'0')}</span><span>${escapeHTML(title)}<small>${completed(i)?'Completada':i>available?'Bloqueada':state.selected===i?'Estás aquí':'Ver misión'}</small></span></button>`).join('');$('map-nodes').innerHTML=TITLES.map((title,i)=>`<button type="button" class="map-node ${completed(i)?'complete':''}" style="left:${POSITIONS[i][0]}%;top:${POSITIONS[i][1]}%" data-stage="${i}" title="${i+1}. ${escapeHTML(title)}" aria-label="Estación ${i+1}: ${escapeHTML(title)}" aria-current="${state.selected===i}" ${i>available?'disabled':''}>${completed(i)?'✓':i+1}</button>`).join('');}
 function taskStatus(i){const tasks=tasksFor(i);return completed(i)?'✓ Estación completada':`${tasks.filter(([id])=>state.checks[taskKey(i,id)]===true).length} de ${tasks.length} tareas completas`;}
 function renderMilestones(){$('milestones').innerHTML=MILESTONES.map(([title,i,summary],n)=>`<article class="milestone ${completed(i)?'achieved':''}"><span class="milestone-number">${completed(i)?'✓':String(n+1).padStart(2,'0')}</span><div><h3>${escapeHTML(title)}</h3><p>${escapeHTML(summary)}</p><span class="milestone-status">${completed(i)?'Hito logrado':'Estación '+(i+1)}</span></div></article>`).join('');}
 function stageBody(i,withHeading=false){const s=STAGES[i],tasks=tasksFor(i);const tip=typeof s.tip==='function'?s.tip(state.residence):s.tip;const description=typeof s.description==='function'?s.description(state.residence):s.description;const extra=typeof s.extra==='function'?s.extra(state.residence):s.extra||'';return `${withHeading?`<p class="eyebrow">ESTACIÓN ${String(i+1).padStart(2,'0')} / 12</p><h2>${escapeHTML(s.title)}</h2>`:''}<div class="mission"><span class="content-label">QUÉ VAS A HACER</span><p class="description">${escapeHTML(description)}</p></div><div class="outcomes"><div><span>QUÉ VAS A LOGRAR</span><p>${escapeHTML(s.result)}</p></div><div><span>POR QUÉ IMPORTA</span><p>${escapeHTML(s.why)}</p></div></div><div class="support"><h3>Dónde pedir ayuda</h3><p><b>Canal de Discord:</b> <span class="channel">${escapeHTML(s.channel)}</span></p><p><b>${i===1?'Onboarding grupal':'Apoyo en Discord'}:</b> ${escapeHTML(s.coaches)}</p>${s.session?`<p><b>Sesión 1 a 1:</b> ${escapeHTML(s.session)}</p>`:''}</div>${s.modules.length?'<h3>Qué estudiar</h3><ul class="module-list">'+s.modules.map(([title,body])=>`<li><strong>${escapeHTML(title)}</strong>${escapeHTML(body)}</li>`).join('')+'</ul>':''}<h3>Tu misión · marca lo que ya hiciste</h3><div class="tasks">${tasks.map(([id,label])=>{const checked=state.checks[taskKey(i,id)]===true;return `<label class="task ${checked?'checked':''}"><input type="checkbox" data-task-stage="${i}" data-task="${id}" ${checked?'checked':''}><span>${escapeHTML(label)}</span></label>`;}).join('')}</div><div class="status" data-task-progress="${i}">${taskStatus(i)}</div>${tip?`<p class="tip">${escapeHTML(tip)}</p>`:''}${extra}<div class="links">${s.links.map(([title,key])=>link(title,key)).join('')}${s.session?link('Agendar 1 a 1','agenda'):''}</div><div class="stage-nav"><button class="text-link" type="button" data-stage="${i-1}" ${i===0?'disabled':''}>← Anterior</button>${i<11?`<button class="button" type="button" data-stage="${i+1}">Siguiente estación →</button>`:'<a class="button" href="#recursos">Ver mis guías ↓</a>'}</div>`;}
@@ -180,28 +183,175 @@ $('resume').addEventListener('click',()=>{const next=TITLES.findIndex((_,i)=>!co
 $('reset').addEventListener('click',()=>$('reset-dialog').showModal());$('cancel-reset').addEventListener('click',()=>$('reset-dialog').close());$('confirm-reset').addEventListener('click',()=>{state.checks={};state.selected=0;trailOpen=0;save();render();$('reset-dialog').close();notice('Tu progreso se reinició en este dispositivo.');});
 $('downloads').innerHTML=DOWNLOADS.map(([tag,title,count,file])=>`<a class="download" href="assets/${file}" download><div><span class="tag">${tag}</span><b>${title}</b></div><span>${count} · Descargar PDF ↓</span></a>`).join('');
 
+let authMode='register';
+
+function setAuthMode(mode){
+  authMode=mode;
+  const isReg=mode==='register';
+  const tabReg=$('tab-register');
+  const tabLogin=$('tab-login');
+  const groupName=$('group-name');
+  const inputName=$('student-name-input');
+  const submitBtn=$('student-dialog-submit');
+  const title=$('auth-dialog-title');
+  const desc=$('auth-dialog-desc');
+  const switchText=$('auth-switch-text');
+  const switchBtn=$('auth-switch-btn');
+  const errorBox=$('auth-error');
+
+  if(errorBox){
+    errorBox.style.display='none';
+    errorBox.textContent='';
+  }
+  if(tabReg){
+    tabReg.classList.toggle('active',isReg);
+    tabReg.setAttribute('aria-selected',String(isReg));
+  }
+  if(tabLogin){
+    tabLogin.classList.toggle('active',!isReg);
+    tabLogin.setAttribute('aria-selected',String(!isReg));
+  }
+  if(groupName)groupName.style.display=isReg?'block':'none';
+  if(inputName)inputName.required=isReg;
+
+  if(title)title.textContent=isReg?'Registrar / Iniciar sesión':'Iniciar sesión';
+  if(desc)desc.textContent=isReg
+    ?'Crea tu cuenta con tu nombre, correo y contraseña para guardar tu avance en la nube, o inicia sesión si ya estás registrado.'
+    :'Ingresa con tu correo y contraseña para continuar con tu avance guardado.';
+
+  if(submitBtn)submitBtn.textContent=isReg?'Registrar / Iniciar sesión':'Iniciar sesión';
+  if(switchText)switchText.textContent=isReg?'¿Ya tienes cuenta registrada?':'¿Aún no tienes cuenta?';
+  if(switchBtn)switchBtn.textContent=isReg?'Iniciar sesión aquí':'Regístrate aquí';
+}
+
+function showAuthError(msg){
+  const errorBox=$('auth-error');
+  if(!errorBox)return;
+  errorBox.textContent=msg;
+  errorBox.style.display='block';
+}
+
+async function logout(){
+  const tokenToRevoke=authToken;
+  authToken='';
+  currentStudent={email:'',name:''};
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem('vcp-student-email');
+  localStorage.removeItem('vcp-student-name');
+  updateSyncStatus('');
+  notice('Has cerrado sesión correctamente.');
+
+  if(tokenToRevoke){
+    try{
+      await fetch('/api/v1/auth/logout',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${tokenToRevoke}`}
+      });
+    }catch(e){
+      // silent
+    }
+  }
+}
+
+if($('tab-register'))$('tab-register').addEventListener('click',()=>setAuthMode('register'));
+if($('tab-login'))$('tab-login').addEventListener('click',()=>setAuthMode('login'));
+if($('auth-switch-btn'))$('auth-switch-btn').addEventListener('click',()=>setAuthMode(authMode==='register'?'login':'register'));
+
 if($('user-btn'))$('user-btn').addEventListener('click',()=>{
-  if($('student-email-input'))$('student-email-input').value=currentStudent.email||'';
-  if($('student-name-input'))$('student-name-input').value=currentStudent.name||'';
-  $('student-dialog').showModal();
+  if(authToken&&currentStudent.email){
+    notice(`Sesión activa: ${currentStudent.name||currentStudent.email}`);
+  }else{
+    if($('student-email-input'))$('student-email-input').value=currentStudent.email||'';
+    if($('student-name-input'))$('student-name-input').value=currentStudent.name||'';
+    if($('student-password-input'))$('student-password-input').value='';
+    setAuthMode('register');
+    $('student-dialog').showModal();
+  }
 });
-if($('student-dialog-cancel'))$('student-dialog-cancel').addEventListener('click',()=>$('student-dialog').close());
-if($('student-form'))$('student-form').addEventListener('submit',e=>{
+
+if($('logout-btn'))$('logout-btn').addEventListener('click',logout);
+
+if($('student-dialog-cancel'))$('student-dialog-cancel').addEventListener('click',()=>{
+  $('student-dialog').close();
+  notice('Continuando como invitado. Tu avance se guarda localmente en este navegador.');
+});
+
+if($('student-form'))$('student-form').addEventListener('submit',async e=>{
   e.preventDefault();
+  const errorBox=$('auth-error');
+  if(errorBox){errorBox.style.display='none';errorBox.textContent='';}
+
   const email=$('student-email-input').value.trim().toLowerCase();
   const name=$('student-name-input').value.trim();
-  if(!email)return;
-  currentStudent.email=email;
-  currentStudent.name=name;
-  localStorage.setItem('vcp-student-email',email);
-  localStorage.setItem('vcp-student-name',name);
-  $('student-dialog').close();
-  notice(`¡Bienvenido! Sincronizando con ${email}...`);
-  fetchProgressFromServer().then(()=>syncProfileToServer());
+  const password=$('student-password-input').value;
+  const button=$('student-dialog-submit');
+
+  if(authMode==='register'&&!name){
+    showAuthError('Por favor ingresa tu nombre y apellido.');
+    return;
+  }
+  if(!email){
+    showAuthError('Por favor ingresa tu correo electrónico.');
+    return;
+  }
+  if(!password||password.length<6){
+    showAuthError('La contraseña debe tener al menos 6 caracteres.');
+    return;
+  }
+
+  button.disabled=true;
+  try{
+    const url=authMode==='register'?'/api/v1/auth/register':'/api/v1/auth/login';
+    const payload=authMode==='register'
+      ?{name,email,password,device_name:'web'}
+      :{email,password,device_name:'web'};
+
+    const response=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(payload)
+    });
+
+    const data=await response.json();
+
+    if(!response.ok){
+      if(authMode==='register'&&(data.errors?.email||(data.message&&data.message.includes('registrado')))){
+        showAuthError('Este correo ya está registrado. Ingresa tu contraseña e inicia sesión.');
+        setAuthMode('login');
+        return;
+      }
+      const msg=data.message||(data.errors?Object.values(data.errors).flat().join(' '):'No fue posible procesar la solicitud.');
+      showAuthError(msg);
+      return;
+    }
+
+    if(!data.token)throw new Error('No se recibió el token de autenticación.');
+
+    authToken=data.token;
+    currentStudent.email=data.user.email;
+    currentStudent.name=data.user.name;
+    localStorage.setItem(AUTH_TOKEN_KEY,authToken);
+    localStorage.setItem('vcp-student-email',currentStudent.email);
+    localStorage.setItem('vcp-student-name',currentStudent.name);
+
+    $('student-dialog').close();
+    notice(authMode==='register'
+      ?`¡Bienvenido, ${currentStudent.name}! Tu cuenta fue creada e iniciaste sesión.`
+      :`¡Hola de nuevo, ${currentStudent.name}! Sesión iniciada.`);
+
+    updateSyncStatus('syncing');
+    await fetchProgressFromServer();
+    await syncProfileToServer();
+  }catch(error){
+    showAuthError(error.message||'No fue posible iniciar sesión.');
+    updateSyncStatus('error');
+  }finally{
+    button.disabled=false;
+  }
 });
 
 render();
-updateSyncStatus(currentStudent.email?'syncing':'');
+updateSyncStatus(authToken?'syncing':'');
 fetchProgressFromServer();
 if(!saveAvailable)$('save-note').textContent='Este navegador no permite guardar el avance. Tus marcas no se conservarán al cerrar la página.';
 const modelContext=document.modelContext;
