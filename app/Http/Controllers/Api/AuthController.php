@@ -3,43 +3,80 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
 use App\Models\User;
+use App\Services\MagicLinkService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    /**
+     * Public registration is disabled. Users are provisioned via administrative API / webhooks.
+     */
+    public function register(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'El registro público está deshabilitado. La cuenta debe ser dada de alta por la academia.',
+        ], 403);
+    }
+
+    /**
+     * Request a passwordless magic login link sent via GoHighLevel webhook.
+     */
+    public function sendMagicLink(Request $request, MagicLinkService $magicLinkService): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6'],
-            'device_name' => ['nullable', 'string', 'max:100'],
+            'email' => ['required', 'email:rfc', 'max:255'],
         ], [
-            'name.required' => 'El nombre es obligatorio.',
             'email.required' => 'El correo electrónico es obligatorio.',
             'email.email' => 'El correo electrónico no es válido.',
-            'email.unique' => 'Este correo ya está registrado. Por favor inicia sesión.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.min' => 'La contraseña debe tener al menos :min caracteres.',
         ]);
 
-        $user = User::query()->create([
-            'name' => $validated['name'],
-            'email' => mb_strtolower($validated['email']),
-            'password' => $validated['password'],
+        $email = mb_strtolower(trim($validated['email']));
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user === null) {
+            return response()->json([
+                'message' => 'No encontramos una cuenta registrada con este correo electrónico. Por favor verifica tu correo o contacta a soporte para darte de alta.',
+            ], 404);
+        }
+
+        $result = $magicLinkService->sendMagicLink($user);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Te hemos enviado un enlace de acceso a tu correo electrónico. Revisa tu bandeja de entrada o spam para entrar.',
+            'sent' => $result['sent'],
         ]);
+    }
 
-        $student = Student::query()->firstOrNew(['email' => mb_strtolower($user->email)]);
-        $student->user()->associate($user);
-        $student->full_name = $user->name;
-        $student->registration_status = 'approved';
-        $student->save();
+    /**
+     * Handle magic link redirect and issue Sanctum token.
+     */
+    public function verifyMagicLink(Request $request, MagicLinkService $magicLinkService): RedirectResponse
+    {
+        $email = (string) $request->query('email', '');
+        $token = (string) $request->query('token', '');
 
-        return $this->tokenResponse($user, $validated['device_name'] ?? 'web');
+        if (blank($email) || blank($token)) {
+            return redirect()->route('ruta', ['auth_error' => 'enlace_invalido']);
+        }
+
+        $user = $magicLinkService->verifyAndConsumeToken($email, $token);
+
+        if ($user === null) {
+            return redirect()->route('ruta', ['auth_error' => 'enlace_expirado']);
+        }
+
+        $sanctumToken = $user->createToken('magic-web', ['progress:read', 'progress:write'])->plainTextToken;
+
+        return redirect()->route('ruta', [
+            'auth_token' => $sanctumToken,
+            'email' => $user->email,
+            'name' => $user->name,
+        ]);
     }
 
     public function login(Request $request): JsonResponse

@@ -22,6 +22,7 @@ class Student extends Model
         'ghl_contact_id',
         'metadata',
         'last_active_at',
+        'last_inactivity_notified_at',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class Student extends Model
         return [
             'metadata' => 'array',
             'last_active_at' => 'datetime',
+            'last_inactivity_notified_at' => 'datetime',
         ];
     }
 

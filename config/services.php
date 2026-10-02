@@ -37,6 +37,8 @@ return [
 
     'gohighlevel' => [
         'webhook_url' => env('GHL_WEBHOOK_URL'),
+        'magic_link_webhook_url' => env('GHL_MAGIC_LINK_WEBHOOK_URL', env('GHL_WEBHOOK_URL')),
+        'inactivity_webhook_url' => env('GHL_INACTIVITY_WEBHOOK_URL', env('GHL_WEBHOOK_URL')),
         'api_key' => env('GHL_API_KEY'),
         'location_id' => env('GHL_LOCATION_ID'),
     ],

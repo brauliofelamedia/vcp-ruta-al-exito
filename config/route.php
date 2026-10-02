@@ -21,4 +21,18 @@ return [
         ['active', 'new-analysis', 'minimum', 'adjust', 'first-order', 'review'],
         ['payments', 'flow', 'sellerboard', 'all-costs', 'first-payment', 'profit'],
     ],
+    'titles' => [
+        1 => 'Campamento base',
+        2 => 'Onboarding con Miguel',
+        3 => 'Apertura de cuenta Seller Central',
+        4 => 'Aprender a analizar',
+        5 => 'Busca tus primeros productos',
+        6 => 'Compra',
+        7 => 'Logística',
+        8 => 'Envío a Amazon FBA',
+        9 => 'Amazon recibe',
+        10 => 'Gestión en Seller Central',
+        11 => 'Primera venta',
+        12 => 'Pago + utilidad real',
+    ],
 ];

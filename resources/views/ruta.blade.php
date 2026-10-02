@@ -39,35 +39,23 @@
   <dialog id="reset-dialog"><h2>¿Reiniciar tu progreso?</h2><p>Se desmarcarán tus tareas de Medium y Élite en este navegador. Esta acción no cambia tu cuenta de Amazon ni tu progreso en la academia.</p><div><button id="cancel-reset" class="button secondary">Conservar mi avance</button><button id="confirm-reset" class="button">Sí, reiniciar</button></div></dialog>
   <dialog id="student-dialog" class="auth-dialog">
     <div class="auth-dialog-header">
-      <h2 id="auth-dialog-title">Registrar / Iniciar sesión</h2>
-      <p id="auth-dialog-desc">Crea tu cuenta con tu nombre, correo y contraseña para guardar tu avance en la nube, o inicia sesión si ya estás registrado.</p>
-    </div>
-    <div class="auth-tabs" role="tablist" aria-label="Opciones de acceso">
-      <button type="button" class="auth-tab active" id="tab-register" role="tab" aria-selected="true">Registrarse</button>
-      <button type="button" class="auth-tab" id="tab-login" role="tab" aria-selected="false">Iniciar sesión</button>
+      <h2 id="auth-dialog-title">Acceder a mi cuenta</h2>
+      <p id="auth-dialog-desc">Ingresa el correo con el que estás dado de alta en la academia para recibir un enlace de acceso directo sin contraseña.</p>
     </div>
     <div id="auth-error" class="auth-error-msg" role="alert" style="display:none"></div>
+    <div id="auth-success" class="auth-success-msg" role="status" style="display:none;background:#14532d30;border:1px solid #22c55e66;color:#86efac;padding:12px 14px;border-radius:8px;font-size:0.88rem;line-height:1.5;margin-bottom:16px"></div>
     <form id="student-form" method="dialog" novalidate>
-      <div id="group-name" class="form-group">
-        <label for="student-name-input">Nombre y apellido *</label>
-        <input type="text" id="student-name-input" placeholder="Tu nombre completo" autocomplete="name">
-      </div>
       <div class="form-group">
-        <label for="student-email-input">Correo electrónico *</label>
+        <label for="student-email-input">Correo electrónico registrado *</label>
         <input type="email" id="student-email-input" placeholder="tu-correo@ejemplo.com" required autocomplete="email">
       </div>
-      <div class="form-group">
-        <label for="student-password-input">Contraseña *</label>
-        <input type="password" id="student-password-input" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="current-password">
-      </div>
       <div class="dialog-actions">
-        <button type="button" id="student-dialog-cancel" class="button secondary">Continuar como invitado</button>
-        <button type="submit" id="student-dialog-submit" class="button">Registrar / Iniciar sesión</button>
+        <button type="button" id="student-dialog-cancel" class="button secondary">Cerrar</button>
+        <button type="submit" id="student-dialog-submit" class="button">Enviar enlace mágico ✨</button>
       </div>
-      <div class="auth-footer-switch">
-        <span id="auth-switch-text">¿Ya tienes cuenta registrada?</span>
-        <button type="button" id="auth-switch-btn" class="auth-link-btn">Iniciar sesión aquí</button>
-      </div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-top:18px;text-align:center;line-height:1.4">
+        El registro público está cerrado. Solo pueden acceder estudiantes dados de alta por la academia. Si acabas de adquirir el curso y no puedes ingresar, contacta a tu asesor.
+      </p>
     </form>
   </dialog>
   <div id="notice" role="status" aria-live="polite"></div>

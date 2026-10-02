@@ -24,16 +24,41 @@ const KEY='vcp-success-route-v1';
 let state={system:'medium',residence:'usa',selected:0,view:'trail',checks:{}};let saveAvailable=true;
 try{const stored=JSON.parse(localStorage.getItem(KEY)||'null');if(stored&&['medium','elite'].includes(stored.system)&&['usa','outside'].includes(stored.residence)){state={...state,...stored,selected:Math.max(0,Math.min(11,Number(stored.selected)||0)),checks:stored.checks&&typeof stored.checks==='object'?stored.checks:{}};}}catch{saveAvailable=false;}
 
-// Sincronización en la Nube (Vercel + Supabase + GoHighLevel)
+// Sincronización en la Nube (GoHighLevel)
 const urlParams=new URLSearchParams(window.location.search);
+const AUTH_TOKEN_KEY='vcp-auth-token';
+let authToken=localStorage.getItem(AUTH_TOKEN_KEY)||'';
+
+// Manejo de redirección desde Magic Link
+const incomingToken=urlParams.get('auth_token')||urlParams.get('token');
+if(incomingToken){
+  authToken=incomingToken;
+  localStorage.setItem(AUTH_TOKEN_KEY,authToken);
+}
+
 let currentStudent={
   email:(urlParams.get('email')||localStorage.getItem('vcp-student-email')||'').trim().toLowerCase(),
   name:(urlParams.get('name')||localStorage.getItem('vcp-student-name')||'').trim()
 };
-const AUTH_TOKEN_KEY='vcp-auth-token';
-let authToken=localStorage.getItem(AUTH_TOKEN_KEY)||'';
 if(currentStudent.email)localStorage.setItem('vcp-student-email',currentStudent.email);
 if(currentStudent.name)localStorage.setItem('vcp-student-name',currentStudent.name);
+
+// Limpiar parámetros sensibles de la URL
+if(incomingToken||urlParams.has('auth_error')){
+  const authErr=urlParams.get('auth_error');
+  try{
+    const cleanUrl=window.location.pathname+(urlParams.has('system')?`?system=${urlParams.get('system')}`:'');
+    window.history.replaceState({},document.title,cleanUrl);
+  }catch(e){}
+  if(incomingToken){
+    setTimeout(()=>{notice(`¡Bienvenido de nuevo, ${currentStudent.name||currentStudent.email}! Sesión iniciada con éxito.`);},400);
+  }else if(authErr==='enlace_expirado'){
+    setTimeout(()=>{notice('El enlace de acceso ya expiró o fue utilizado. Por favor solicita uno nuevo.');},400);
+  }else if(authErr==='enlace_invalido'){
+    setTimeout(()=>{notice('El enlace de acceso no es válido. Por favor solicita uno nuevo.');},400);
+  }
+}
+
 if(urlParams.has('system')&&['medium','elite'].includes(urlParams.get('system')))state.system=urlParams.get('system');
 if(urlParams.has('residence')&&['usa','outside'].includes(urlParams.get('residence')))state.residence=urlParams.get('residence');
 
@@ -183,52 +208,22 @@ $('resume').addEventListener('click',()=>{const next=TITLES.findIndex((_,i)=>!co
 $('reset').addEventListener('click',()=>$('reset-dialog').showModal());$('cancel-reset').addEventListener('click',()=>$('reset-dialog').close());$('confirm-reset').addEventListener('click',()=>{state.checks={};state.selected=0;trailOpen=0;save();render();$('reset-dialog').close();notice('Tu progreso se reinició en este dispositivo.');});
 $('downloads').innerHTML=DOWNLOADS.map(([tag,title,count,file])=>`<a class="download" href="assets/${file}" download><div><span class="tag">${tag}</span><b>${title}</b></div><span>${count} · Descargar PDF ↓</span></a>`).join('');
 
-let authMode='register';
-
-function setAuthMode(mode){
-  authMode=mode;
-  const isReg=mode==='register';
-  const tabReg=$('tab-register');
-  const tabLogin=$('tab-login');
-  const groupName=$('group-name');
-  const inputName=$('student-name-input');
-  const submitBtn=$('student-dialog-submit');
-  const title=$('auth-dialog-title');
-  const desc=$('auth-dialog-desc');
-  const switchText=$('auth-switch-text');
-  const switchBtn=$('auth-switch-btn');
-  const errorBox=$('auth-error');
-
-  if(errorBox){
-    errorBox.style.display='none';
-    errorBox.textContent='';
-  }
-  if(tabReg){
-    tabReg.classList.toggle('active',isReg);
-    tabReg.setAttribute('aria-selected',String(isReg));
-  }
-  if(tabLogin){
-    tabLogin.classList.toggle('active',!isReg);
-    tabLogin.setAttribute('aria-selected',String(!isReg));
-  }
-  if(groupName)groupName.style.display=isReg?'block':'none';
-  if(inputName)inputName.required=isReg;
-
-  if(title)title.textContent=isReg?'Registrar / Iniciar sesión':'Iniciar sesión';
-  if(desc)desc.textContent=isReg
-    ?'Crea tu cuenta con tu nombre, correo y contraseña para guardar tu avance en la nube, o inicia sesión si ya estás registrado.'
-    :'Ingresa con tu correo y contraseña para continuar con tu avance guardado.';
-
-  if(submitBtn)submitBtn.textContent=isReg?'Registrar / Iniciar sesión':'Iniciar sesión';
-  if(switchText)switchText.textContent=isReg?'¿Ya tienes cuenta registrada?':'¿Aún no tienes cuenta?';
-  if(switchBtn)switchBtn.textContent=isReg?'Iniciar sesión aquí':'Regístrate aquí';
-}
-
 function showAuthError(msg){
   const errorBox=$('auth-error');
+  const successBox=$('auth-success');
+  if(successBox){successBox.style.display='none';successBox.textContent='';}
   if(!errorBox)return;
   errorBox.textContent=msg;
   errorBox.style.display='block';
+}
+
+function showAuthSuccess(msg){
+  const errorBox=$('auth-error');
+  const successBox=$('auth-success');
+  if(errorBox){errorBox.style.display='none';errorBox.textContent='';}
+  if(!successBox)return;
+  successBox.textContent=msg;
+  successBox.style.display='block';
 }
 
 async function logout(){
@@ -253,18 +248,18 @@ async function logout(){
   }
 }
 
-if($('tab-register'))$('tab-register').addEventListener('click',()=>setAuthMode('register'));
-if($('tab-login'))$('tab-login').addEventListener('click',()=>setAuthMode('login'));
-if($('auth-switch-btn'))$('auth-switch-btn').addEventListener('click',()=>setAuthMode(authMode==='register'?'login':'register'));
-
 if($('user-btn'))$('user-btn').addEventListener('click',()=>{
   if(authToken&&currentStudent.email){
     notice(`Sesión activa: ${currentStudent.name||currentStudent.email}`);
   }else{
-    if($('student-email-input'))$('student-email-input').value=currentStudent.email||'';
-    if($('student-name-input'))$('student-name-input').value=currentStudent.name||'';
-    if($('student-password-input'))$('student-password-input').value='';
-    setAuthMode('register');
+    const emailInput=$('student-email-input');
+    if(emailInput)emailInput.value=currentStudent.email||'';
+    const errBox=$('auth-error');
+    const succBox=$('auth-success');
+    if(errBox){errBox.style.display='none';errBox.textContent='';}
+    if(succBox){succBox.style.display='none';succBox.textContent='';}
+    const submitBtn=$('student-dialog-submit');
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar enlace mágico ✨';}
     $('student-dialog').showModal();
   }
 });
@@ -273,80 +268,51 @@ if($('logout-btn'))$('logout-btn').addEventListener('click',logout);
 
 if($('student-dialog-cancel'))$('student-dialog-cancel').addEventListener('click',()=>{
   $('student-dialog').close();
-  notice('Continuando como invitado. Tu avance se guarda localmente en este navegador.');
 });
 
 if($('student-form'))$('student-form').addEventListener('submit',async e=>{
   e.preventDefault();
   const errorBox=$('auth-error');
+  const successBox=$('auth-success');
   if(errorBox){errorBox.style.display='none';errorBox.textContent='';}
+  if(successBox){successBox.style.display='none';successBox.textContent='';}
 
-  const email=$('student-email-input').value.trim().toLowerCase();
-  const name=$('student-name-input').value.trim();
-  const password=$('student-password-input').value;
+  const emailInput=$('student-email-input');
+  const email=(emailInput?emailInput.value:'').trim().toLowerCase();
   const button=$('student-dialog-submit');
 
-  if(authMode==='register'&&!name){
-    showAuthError('Por favor ingresa tu nombre y apellido.');
-    return;
-  }
-  if(!email){
-    showAuthError('Por favor ingresa tu correo electrónico.');
-    return;
-  }
-  if(!password||password.length<6){
-    showAuthError('La contraseña debe tener al menos 6 caracteres.');
+  if(!email||!email.includes('@')){
+    showAuthError('Por favor ingresa un correo electrónico válido.');
     return;
   }
 
   button.disabled=true;
-  try{
-    const url=authMode==='register'?'/api/v1/auth/register':'/api/v1/auth/login';
-    const payload=authMode==='register'
-      ?{name,email,password,device_name:'web'}
-      :{email,password,device_name:'web'};
+  button.textContent='Enviando enlace...';
 
-    const response=await fetch(url,{
+  try{
+    const response=await fetch('/api/v1/auth/magic-link',{
       method:'POST',
       headers:{'Content-Type':'application/json','Accept':'application/json'},
-      body:JSON.stringify(payload)
+      body:JSON.stringify({email})
     });
 
     const data=await response.json();
 
     if(!response.ok){
-      if(authMode==='register'&&(data.errors?.email||(data.message&&data.message.includes('registrado')))){
-        showAuthError('Este correo ya está registrado. Ingresa tu contraseña e inicia sesión.');
-        setAuthMode('login');
-        return;
-      }
-      const msg=data.message||(data.errors?Object.values(data.errors).flat().join(' '):'No fue posible procesar la solicitud.');
+      const msg=data.message||(data.errors?Object.values(data.errors).flat().join(' '):'No fue posible enviar el enlace.');
       showAuthError(msg);
+      button.disabled=false;
+      button.textContent='Enviar enlace mágico ✨';
       return;
     }
 
-    if(!data.token)throw new Error('No se recibió el token de autenticación.');
-
-    authToken=data.token;
-    currentStudent.email=data.user.email;
-    currentStudent.name=data.user.name;
-    localStorage.setItem(AUTH_TOKEN_KEY,authToken);
-    localStorage.setItem('vcp-student-email',currentStudent.email);
-    localStorage.setItem('vcp-student-name',currentStudent.name);
-
-    $('student-dialog').close();
-    notice(authMode==='register'
-      ?`¡Bienvenido, ${currentStudent.name}! Tu cuenta fue creada e iniciaste sesión.`
-      :`¡Hola de nuevo, ${currentStudent.name}! Sesión iniciada.`);
-
-    updateSyncStatus('syncing');
-    await fetchProgressFromServer();
-    await syncProfileToServer();
+    showAuthSuccess(`✨ ¡Enlace enviado! Hemos enviado un acceso a ${email}. Revisa tu bandeja de entrada o spam y haz clic en el enlace para entrar sin contraseña.`);
+    button.textContent='✓ Enlace enviado';
+    notice(`Enlace de acceso enviado a ${email}. Revisa tu correo.`);
   }catch(error){
-    showAuthError(error.message||'No fue posible iniciar sesión.');
-    updateSyncStatus('error');
-  }finally{
+    showAuthError(error.message||'Error al comunicarse con el servidor.');
     button.disabled=false;
+    button.textContent='Enviar enlace mágico ✨';
   }
 });
 
