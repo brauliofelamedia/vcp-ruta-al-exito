@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GoHighLevelService;
 use App\Services\MagicLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,7 +26,7 @@ class AuthController extends Controller
     /**
      * Request a passwordless magic login link sent via GoHighLevel webhook.
      */
-    public function sendMagicLink(Request $request, MagicLinkService $magicLinkService): JsonResponse
+    public function sendMagicLink(Request $request, MagicLinkService $magicLinkService, GoHighLevelService $goHighLevelService): JsonResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'email:rfc', 'max:255'],
@@ -38,9 +39,28 @@ class AuthController extends Controller
         $user = User::query()->where('email', $email)->first();
 
         if ($user === null) {
-            return response()->json([
-                'message' => 'No encontramos una cuenta registrada con este correo electrónico. Por favor verifica tu correo o contacta a soporte para darte de alta.',
-            ], 404);
+            // Check in GoHighLevel if direct API credentials are configured
+            if ($goHighLevelService->hasApiCredentials()) {
+                $contact = $goHighLevelService->findContactByEmail($email);
+
+                if ($contact !== null) {
+                    $system = $goHighLevelService->determineSystemFromTags($contact['tags'] ?? []);
+
+                    if ($system !== null) {
+                        $user = $goHighLevelService->provisionUserFromContact($contact, $system);
+                    } else {
+                        return response()->json([
+                            'message' => 'Tu correo fue localizado en el sistema pero no cuenta con la etiqueta de acceso (high-ticket o medium). Por favor contacta a soporte para activar tu acceso.',
+                        ], 403);
+                    }
+                }
+            }
+
+            if ($user === null) {
+                return response()->json([
+                    'message' => 'No encontramos una cuenta registrada con este correo electrónico. Por favor verifica tu correo o contacta a soporte para darte de alta.',
+                ], 404);
+            }
         }
 
         $result = $magicLinkService->sendMagicLink($user);

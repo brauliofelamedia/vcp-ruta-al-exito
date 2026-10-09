@@ -115,41 +115,10 @@ class UserProvisionController extends Controller
      */
     protected function determineResidence(?string $country, ?string $residence = null): ?string
     {
-        if (filled($country)) {
-            $cleaned = mb_strtolower(trim($country));
-            $cleaned = trim(preg_replace('/[.,]+/', '', $cleaned));
-            $cleaned = preg_replace('/\s+/', ' ', $cleaned);
-
-            $usaAliases = [
-                'united states',
-                'united states of america',
-                'usa',
-                'us',
-                'estados unidos',
-                'estados unidos de america',
-                'eeuu',
-                'ee uu',
-                'eua',
-            ];
-
-            if (in_array($cleaned, $usaAliases, true)) {
-                return 'usa';
-            }
-
-            if (str_starts_with($cleaned, 'united states') || str_starts_with($cleaned, 'estados unidos')) {
-                return 'usa';
-            }
-
-            return 'outside';
+        if (blank($country) && blank($residence)) {
+            return null;
         }
 
-        if (filled($residence)) {
-            $lowerResidence = strtolower(trim($residence));
-            if (in_array($lowerResidence, ['usa', 'outside'], true)) {
-                return $lowerResidence;
-            }
-        }
-
-        return null;
+        return Student::determineResidence($country, $residence);
     }
 }

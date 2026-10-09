@@ -100,6 +100,113 @@ class AuthenticationApiTest extends TestCase
             ->assertJsonPath('message', 'No encontramos una cuenta registrada con este correo electrónico. Por favor verifica tu correo o contacta a soporte para darte de alta.');
     }
 
+    public function test_it_auto_provisions_user_from_ghl_with_high_ticket_tag(): void
+    {
+        config([
+            'services.gohighlevel.api_key' => 'test-api-key',
+            'services.gohighlevel.location_id' => 'loc-123',
+            'services.gohighlevel.magic_link_webhook_url' => 'https://ghl.test/magic-link-webhook',
+        ]);
+
+        Http::fake([
+            'https://services.leadconnectorhq.com/contacts/search/duplicate*' => Http::response([
+                'contact' => [
+                    'id' => 'ghl-contact-999',
+                    'name' => 'Sara VIP',
+                    'email' => 'sara@example.com',
+                    'country' => 'United States',
+                    'tags' => ['cliente', 'high-ticket'],
+                ],
+            ], 200),
+            'https://ghl.test/magic-link-webhook' => Http::response([], 200),
+        ]);
+
+        $this->postJson('/api/v1/auth/magic-link', [
+            'email' => 'sara@example.com',
+        ])->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('sent', true);
+
+        // Verify user and student were automatically created
+        $this->assertDatabaseHas('users', [
+            'email' => 'sara@example.com',
+            'name' => 'Sara VIP',
+        ]);
+
+        $this->assertDatabaseHas('students', [
+            'email' => 'sara@example.com',
+            'full_name' => 'Sara VIP',
+            'system' => 'elite',
+            'residence' => 'usa',
+            'ghl_contact_id' => 'ghl-contact-999',
+            'registration_status' => 'approved',
+        ]);
+    }
+
+    public function test_it_auto_provisions_user_from_ghl_with_medium_tag(): void
+    {
+        config([
+            'services.gohighlevel.api_key' => 'test-api-key',
+            'services.gohighlevel.location_id' => 'loc-123',
+            'services.gohighlevel.magic_link_webhook_url' => 'https://ghl.test/magic-link-webhook',
+        ]);
+
+        Http::fake([
+            'https://services.leadconnectorhq.com/contacts/search/duplicate*' => Http::response([
+                'contact' => [
+                    'id' => 'ghl-contact-555',
+                    'firstName' => 'Luis',
+                    'lastName' => 'Morales',
+                    'email' => 'luis@example.com',
+                    'country' => 'Mexico',
+                    'tags' => ['medium'],
+                ],
+            ], 200),
+            'https://ghl.test/magic-link-webhook' => Http::response([], 200),
+        ]);
+
+        $this->postJson('/api/v1/auth/magic-link', [
+            'email' => 'luis@example.com',
+        ])->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('sent', true);
+
+        $this->assertDatabaseHas('students', [
+            'email' => 'luis@example.com',
+            'full_name' => 'Luis Morales',
+            'system' => 'medium',
+            'residence' => 'outside',
+            'ghl_contact_id' => 'ghl-contact-555',
+            'registration_status' => 'approved',
+        ]);
+    }
+
+    public function test_it_rejects_ghl_contact_without_required_tags(): void
+    {
+        config([
+            'services.gohighlevel.api_key' => 'test-api-key',
+            'services.gohighlevel.location_id' => 'loc-123',
+        ]);
+
+        Http::fake([
+            'https://services.leadconnectorhq.com/contacts/search/duplicate*' => Http::response([
+                'contact' => [
+                    'id' => 'ghl-contact-111',
+                    'name' => 'Lead Sin Curso',
+                    'email' => 'lead@example.com',
+                    'tags' => ['prospecto', 'newsletter'],
+                ],
+            ], 200),
+        ]);
+
+        $this->postJson('/api/v1/auth/magic-link', [
+            'email' => 'lead@example.com',
+        ])->assertStatus(403)
+            ->assertJsonPath('message', 'Tu correo fue localizado en el sistema pero no cuenta con la etiqueta de acceso (high-ticket o medium). Por favor contacta a soporte para activar tu acceso.');
+
+        $this->assertDatabaseMissing('users', ['email' => 'lead@example.com']);
+    }
+
     public function test_it_requests_magic_link_and_sends_ghl_webhook_with_html(): void
     {
         config(['services.gohighlevel.magic_link_webhook_url' => 'https://ghl.test/magic-link-webhook']);

@@ -69,8 +69,15 @@ El registro público en la web fue deshabilitado. Los estudiantes solo ingresan 
 3. El frontend envía la petición a:
    - **`POST /api/v1/auth/magic-link`**
    - Payload: `{"email": "juan@ejemplo.com"}`
-4. Si el correo no existe en la base de datos, el sistema devuelve `404` indicándole que debe ser dado de alta por la academia.
-5. Si el correo existe:
+4. **Búsqueda y Aprovisionamiento Automático en GoHighLevel:**
+   - Si el correo ya existe localmente, se genera su Magic Link de inmediato.
+   - Si **no existe localmente**, el backend consulta directamente la API de GoHighLevel (`GHL_API_KEY` y `GHL_LOCATION_ID`).
+   - Si el contacto existe en GHL y tiene la etiqueta:
+     - `high-ticket` (o `elite`): Se aprovisiona automáticamente con sistema **Élite** y residencia según su país.
+     - `medium`: Se aprovisiona automáticamente con sistema **Medium** y residencia según su país.
+     - Si el contacto no tiene ninguna de estas etiquetas, se rechaza con `403` indicando que su cuenta no tiene activo el acceso al curso.
+   - Si no existe tampoco en GHL, devuelve `404` para contactar a soporte.
+5. Al tener al usuario (existente o recién dado de alta desde GHL):
    - Se crea un token seguro con expiración de 24 horas (`magic_login_tokens`).
    - Se dispara un webhook a GoHighLevel con el enlace generado y el **cuerpo HTML completo**.
 6. El estudiante abre el correo en su bandeja de entrada y pulsa el botón:
