@@ -34,6 +34,16 @@
     <section class="profile" aria-label="Personaliza tu ruta"><label>Tu sistema<select id="system"><option value="medium">Sistema Definitivo · Medium</option><option value="elite">Sistema Élite · VIP avanzado</option></select></label><label>Tu residencia<select id="residence"><option value="usa">Dentro de Estados Unidos</option><option value="outside">Fuera de Estados Unidos</option></select></label><a id="course" class="button" target="_blank" rel="noopener noreferrer">Abrir mi curso ↗</a><div id="benefits" class="benefits"></div></section>
     <section class="progress-card" aria-label="Tu progreso"><div><strong id="progress-label">0 de 12 estaciones completas</strong><span id="task-count">0 tareas completadas</span></div><progress id="progress" value="0" max="12" aria-label="Estaciones completadas"></progress><button id="resume" class="text-link" type="button">Mi próxima estación →</button></section>
     <p class="save-note" id="save-note">Tu avance se guarda solo en este navegador y dispositivo. Conecta tu cuenta arriba para sincronizar con tus coaches.</p>
+
+    <div id="route-lock-banner" class="route-lock-banner" style="display:none">
+      <div class="lock-icon" aria-hidden="true">🔒</div>
+      <div class="lock-body">
+        <span class="lock-tag">ACCESO EXCLUSIVO PARA ALUMNOS</span>
+        <h3>Ruta de Expedición Protegida</h3>
+        <p>Esta ruta es privada. Inicia sesión con el correo de tu cuenta en la academia para desbloquear tus misiones, marcar tareas y sincronizar tu avance con tus coaches.</p>
+      </div>
+      <button type="button" class="button lock-btn" id="lock-login-btn">Conectar mi cuenta ✨</button>
+    </div>
     <section class="milestones" aria-label="Los cinco hitos de tu primer ciclo"><div class="section-head"><h2>TU META NO ES VERLO TODO. ES LOGRAR ESTO.</h2></div><div id="milestones" class="milestone-grid"></div></section>
     <section class="route-heading" aria-labelledby="route-title"><div><p class="eyebrow">AVANZA POR LOGROS, NO POR PRISA</p><h2 id="route-title">TU MUNDO DE EXPEDICIÓN</h2><p>Abre una estación. Completa su misión. Continúa a tu ritmo.</p></div><div class="view-switch" role="group" aria-label="Vista de la ruta"><button type="button" data-view="trail" aria-pressed="true">Ruta paso a paso</button><button type="button" data-view="map" aria-pressed="false">Mapa de expedición</button></div></section>
     <section id="trail" class="trail" aria-label="Ruta paso a paso"></section>

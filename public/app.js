@@ -90,10 +90,13 @@ function getStats(){
 }
 
 function updateSyncStatus(status){
-  const dot=$('sync-dot'),btn=$('user-btn'),note=$('save-note'),logoutBtn=$('logout-btn');
+  const dot=$('sync-dot'),btn=$('user-btn'),note=$('save-note'),logoutBtn=$('logout-btn'),lockBanner=$('route-lock-banner');
+  const isAuth=Boolean(authToken&&currentStudent.email);
+  document.body.classList.toggle('route-locked',!isAuth);
+  if(lockBanner)lockBanner.style.display=isAuth?'none':'flex';
   if(!dot||!btn)return;
   dot.className='sync-dot '+(status||'');
-  if(authToken&&currentStudent.email){
+  if(isAuth){
     btn.textContent=currentStudent.name||currentStudent.email;
     btn.title=`Conectado como ${currentStudent.email}`;
     if(logoutBtn)logoutBtn.style.display='inline-block';
@@ -101,12 +104,13 @@ function updateSyncStatus(status){
       if(status==='synced')note.textContent=`🟢 Conectado como ${currentStudent.email} · Tu avance se sincroniza con tus coaches en GoHighLevel.`;
       else if(status==='syncing')note.textContent=`🟡 Guardando cambios en la nube...`;
       else if(status==='error')note.textContent=`🔴 Guardado localmente (sin conexión a la nube). Se reintentará al conectar.`;
+      else note.textContent=`🟢 Conectado como ${currentStudent.email} · Sincronización activa con GoHighLevel.`;
     }
   }else{
     btn.textContent='Conectar mi cuenta';
-    btn.title='Registrar o iniciar sesión para sincronizar tu avance';
+    btn.title='Inicia sesión con tu correo para desbloquear tu ruta y sincronizar tu avance';
     if(logoutBtn)logoutBtn.style.display='none';
-    if(note)note.textContent='Tu avance se guarda solo en este navegador. Conecta tu cuenta arriba para sincronizar con tus coaches.';
+    if(note)note.textContent='🔒 Modo vista previa: Inicia sesión con tu correo de alumno para marcar tareas y sincronizar con tus coaches.';
   }
 }
 
@@ -159,6 +163,13 @@ async function fetchProgressFromServer(){
   updateSyncStatus('syncing');
   try{
     const res=await fetch('/api/v1/me/progress',{headers:{'Authorization':`Bearer ${authToken}`}});
+    if(res.status===401){
+      authToken='';
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      updateSyncStatus('');
+      render();
+      return;
+    }
     const data=await res.json();
     if(data.ok&&data.checks){
       state.checks={...state.checks,...data.checks};
@@ -171,10 +182,11 @@ async function fetchProgressFromServer(){
         }
       }
       save();
-      render();
       updateSyncStatus('synced');
+      render();
     }else{
       updateSyncStatus('synced');
+      render();
     }
   }catch(err){
     console.warn('Fetch failed:',err);
@@ -190,20 +202,53 @@ function completed(index){const t=tasksFor(index);return t.length>0&&t.every(([i
 function unlockedStation(){const next=TITLES.findIndex((_,i)=>!completed(i));return next===-1?11:next;}
 function notice(text){$('notice').textContent=text;$('notice').classList.add('visible');setTimeout(()=>$('notice').classList.remove('visible'),2600);}
 function selectStage(index,focus=false){if(!Number.isInteger(index)||index<0||index>11)throw new Error('Estación inválida');if(index>unlockedStation()){notice(`Completa la estación ${unlockedStation()+1} para desbloquear esta misión.`);return;}state.selected=index;trailOpen=index;save();render();if(focus){const target=state.view==='trail'?$('trail-toggle-'+index):$('detail');target.focus({preventScroll:true});target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});}}
-function setTask(index,id,checked){if(!tasksFor(index).some(([taskId])=>taskId===id)||typeof checked!=='boolean')throw new Error('Tarea inválida');if(index>unlockedStation()){notice(`Completa la estación ${unlockedStation()+1} antes de marcar tareas posteriores.`);render();return;}const before=completed(index);state.checks[taskKey(index,id)]=checked;save();renderProgress();renderStations();renderMilestones();document.querySelectorAll('input[data-task]').forEach(input=>{if(Number(input.dataset.taskStage)===index&&input.dataset.task===id){input.checked=checked;input.closest('.task').classList.toggle('checked',checked);}});updateTrailProgress();document.querySelectorAll(`[data-task-progress="${index}"]`).forEach(el=>el.textContent=taskStatus(index));if(!before&&completed(index))notice('¡Estación completa! Continúa con tu siguiente misión.');syncTaskToServer(index,id,checked);}
+function setTask(index,id,checked){
+  if(!authToken){
+    notice('🔒 Inicia sesión con tu cuenta de alumno para marcar tareas.');
+    openLoginDialog();
+    render();
+    return;
+  }
+  if(!tasksFor(index).some(([taskId])=>taskId===id)||typeof checked!=='boolean')throw new Error('Tarea inválida');
+  if(index>unlockedStation()){notice(`Completa la estación ${unlockedStation()+1} antes de marcar tareas posteriores.`);render();return;}
+  const before=completed(index);
+  state.checks[taskKey(index,id)]=checked;
+  save();
+  renderProgress();
+  renderStations();
+  renderMilestones();
+  document.querySelectorAll('input[data-task]').forEach(input=>{if(Number(input.dataset.taskStage)===index&&input.dataset.task===id){input.checked=checked;input.closest('.task').classList.toggle('checked',checked);}});
+  updateTrailProgress();
+  document.querySelectorAll(`[data-task-progress="${index}"]`).forEach(el=>el.textContent=taskStatus(index));
+  if(!before&&completed(index))notice('¡Estación completa! Continúa con tu siguiente misión.');
+  syncTaskToServer(index,id,checked);
+}
 function link(label,key){const href=key==='course'?URLS[state.system]:URLS[key];return `<a class="button secondary" href="${href}" target="_blank" rel="noopener noreferrer">${escapeHTML(label)} ↗</a>`;}
 function renderProgress(){const count=TITLES.filter((_,i)=>completed(i)).length;const tasks=TITLES.reduce((n,_,i)=>n+tasksFor(i).filter(([id])=>state.checks[taskKey(i,id)]).length,0);$('progress-label').textContent=`${count} de 12 estaciones completas`;$('task-count').textContent=`${tasks} tareas completadas`;$('progress').value=count;}
-function renderStations(){const available=unlockedStation();$('stations').innerHTML=TITLES.map((title,i)=>`<button type="button" class="station ${completed(i)?'complete':''}" data-stage="${i}" aria-current="${state.selected===i}" ${i>available?'disabled':''}><span class="number">${completed(i)?'✓':String(i+1).padStart(2,'0')}</span><span>${escapeHTML(title)}<small>${completed(i)?'Completada':i>available?'Bloqueada':state.selected===i?'Estás aquí':'Ver misión'}</small></span></button>`).join('');$('map-nodes').innerHTML=TITLES.map((title,i)=>`<button type="button" class="map-node ${completed(i)?'complete':''}" style="left:${POSITIONS[i][0]}%;top:${POSITIONS[i][1]}%" data-stage="${i}" title="${i+1}. ${escapeHTML(title)}" aria-label="Estación ${i+1}: ${escapeHTML(title)}" aria-current="${state.selected===i}" ${i>available?'disabled':''}>${completed(i)?'✓':i+1}</button>`).join('');}
+function renderStations(){const available=unlockedStation();$('stations').innerHTML=TITLES.map((title,i)=>`<button type="button" class="station ${completed(i)?'complete':''}" data-stage="${i}" aria-current="${state.selected===i}" ${i>available?'disabled':''}><span class="number">${completed(i)?'✓':String(i+1).padStart(2,'0')}</span><span>${escapeHTML(title)}<small>${!authToken?'🔒 Bloqueada':completed(i)?'Completada':i>available?'Bloqueada':state.selected===i?'Estás aquí':'Ver misión'}</small></span></button>`).join('');$('map-nodes').innerHTML=TITLES.map((title,i)=>`<button type="button" class="map-node ${completed(i)?'complete':''}" style="left:${POSITIONS[i][0]}%;top:${POSITIONS[i][1]}%" data-stage="${i}" title="${i+1}. ${escapeHTML(title)}" aria-label="Estación ${i+1}: ${escapeHTML(title)}" aria-current="${state.selected===i}" ${i>available?'disabled':''}>${completed(i)?'✓':i+1}</button>`).join('');}
 function taskStatus(i){const tasks=tasksFor(i);return completed(i)?'✓ Estación completada':`${tasks.filter(([id])=>state.checks[taskKey(i,id)]===true).length} de ${tasks.length} tareas completas`;}
 function renderMilestones(){$('milestones').innerHTML=MILESTONES.map(([title,i,summary],n)=>`<article class="milestone ${completed(i)?'achieved':''}"><span class="milestone-number">${completed(i)?'✓':String(n+1).padStart(2,'0')}</span><div><h3>${escapeHTML(title)}</h3><p>${escapeHTML(summary)}</p><span class="milestone-status">${completed(i)?'Hito logrado':'Estación '+(i+1)}</span></div></article>`).join('');}
-function stageBody(i,withHeading=false){const s=STAGES[i],tasks=tasksFor(i);const tip=typeof s.tip==='function'?s.tip(state.residence):s.tip;const description=typeof s.description==='function'?s.description(state.residence):s.description;const extra=typeof s.extra==='function'?s.extra(state.residence):s.extra||'';return `${withHeading?`<div class="detail-heading"><div><p class="eyebrow">ESTACIÓN ${String(i+1).padStart(2,'0')} / 12</p><h2>${escapeHTML(s.title)}</h2></div><img src="assets/characters/${STAGE_CHARACTERS[i]}" alt="" width="128" height="150"></div>`:''}<div class="mission"><span class="content-label">QUÉ VAS A HACER</span><p class="description">${escapeHTML(description)}</p></div><div class="outcomes"><div><span>QUÉ VAS A LOGRAR</span><p>${escapeHTML(s.result)}</p></div><div><span>POR QUÉ IMPORTA</span><p>${escapeHTML(s.why)}</p></div></div><div class="support"><h3>Dónde pedir ayuda</h3><p><b>Canal de Discord:</b> <span class="channel">${escapeHTML(s.channel)}</span></p><p><b>${i===1?'Onboarding grupal':'Apoyo en Discord'}:</b> ${escapeHTML(s.coaches)}</p>${s.session?`<p><b>Sesión 1 a 1:</b> ${escapeHTML(s.session)}</p>`:''}</div>${s.modules.length?'<h3>Qué estudiar</h3><ul class="module-list">'+s.modules.map(([title,body])=>`<li><strong>${escapeHTML(title)}</strong>${escapeHTML(body)}</li>`).join('')+'</ul>':''}<h3>Tu misión · marca lo que ya hiciste</h3><div class="tasks">${tasks.map(([id,label])=>{const checked=state.checks[taskKey(i,id)]===true;return `<label class="task ${checked?'checked':''}"><input type="checkbox" data-task-stage="${i}" data-task="${id}" ${checked?'checked':''}><span>${escapeHTML(label)}</span></label>`;}).join('')}</div><div class="status" data-task-progress="${i}">${taskStatus(i)}</div>${tip?`<p class="tip">${escapeHTML(tip)}</p>`:''}${extra}<div class="links">${s.links.map(([title,key])=>link(title,key)).join('')}${s.session?link('Agendar 1 a 1','agenda'):''}</div><div class="stage-nav"><button class="text-link" type="button" data-stage="${i-1}" ${i===0?'disabled':''}>← Anterior</button>${i<11?`<button class="button" type="button" data-stage="${i+1}">Siguiente estación →</button>`:'<a class="button" href="#recursos">Ver mis guías ↓</a>'}</div>`;}
+function stageBody(i,withHeading=false){const s=STAGES[i],tasks=tasksFor(i);const tip=typeof s.tip==='function'?s.tip(state.residence):s.tip;const description=typeof s.description==='function'?s.description(state.residence):s.description;const extra=typeof s.extra==='function'?s.extra(state.residence):s.extra||'';return `${withHeading?`<div class="detail-heading"><div><p class="eyebrow">ESTACIÓN ${String(i+1).padStart(2,'0')} / 12</p><h2>${escapeHTML(s.title)}</h2></div><img src="assets/characters/${STAGE_CHARACTERS[i]}" alt="" width="128" height="150"></div>`:''}<div class="mission"><span class="content-label">QUÉ VAS A HACER</span><p class="description">${escapeHTML(description)}</p></div><div class="outcomes"><div><span>QUÉ VAS A LOGRAR</span><p>${escapeHTML(s.result)}</p></div><div><span>POR QUÉ IMPORTA</span><p>${escapeHTML(s.why)}</p></div></div><div class="support"><h3>Dónde pedir ayuda</h3><p><b>Canal de Discord:</b> <span class="channel">${escapeHTML(s.channel)}</span></p><p><b>${i===1?'Onboarding grupal':'Apoyo en Discord'}:</b> ${escapeHTML(s.coaches)}</p>${s.session?`<p><b>Sesión 1 a 1:</b> ${escapeHTML(s.session)}</p>`:''}</div>${s.modules.length?'<h3>Qué estudiar</h3><ul class="module-list">'+s.modules.map(([title,body])=>`<li><strong>${escapeHTML(title)}</strong>${escapeHTML(body)}</li>`).join('')+'</ul>':''}<h3>Tu misión · marca lo que ya hiciste</h3>${!authToken?'<p class="task-lock-hint">🔒 Tareas bloqueadas · Inicia sesión con tu correo para marcar tus tareas y guardar tu avance.</p>':''}<div class="tasks">${tasks.map(([id,label])=>{const checked=state.checks[taskKey(i,id)]===true;return `<label class="task ${checked?'checked':''} ${!authToken?'locked':''}"><input type="checkbox" data-task-stage="${i}" data-task="${id}" ${checked?'checked':''} ${!authToken?'disabled':''}><span>${escapeHTML(label)}</span></label>`;}).join('')}</div><div class="status" data-task-progress="${i}">${taskStatus(i)}</div>${tip?`<p class="tip">${escapeHTML(tip)}</p>`:''}${extra}<div class="links">${s.links.map(([title,key])=>link(title,key)).join('')}${s.session?link('Agendar 1 a 1','agenda'):''}</div><div class="stage-nav"><button class="text-link" type="button" data-stage="${i-1}" ${i===0?'disabled':''}>← Anterior</button>${i<11?`<button class="button" type="button" data-stage="${i+1}">Siguiente estación →</button>`:'<a class="button" href="#recursos">Ver mis guías ↓</a>'}</div>`;}
 function renderDetail(){$('detail').innerHTML=stageBody(state.selected,true);}
-function renderTrail(){$('trail').innerHTML=STAGES.map((s,i)=>{const open=trailOpen===i;return `<article class="trail-station ${open?'open':''} ${completed(i)?'complete':''}" data-trail-stage="${i}"><div class="trail-pin" aria-hidden="true">${completed(i)?'✓':String(i+1).padStart(2,'0')}</div><div class="trail-card"><h3 class="trail-title"><button id="trail-toggle-${i}" class="trail-toggle" type="button" data-trail-toggle="${i}" aria-expanded="${open}" aria-controls="trail-body-${i}"><span class="trail-title-text"><span class="trail-phase">${escapeHTML(PHASES[i])}</span><span class="trail-name">${escapeHTML(s.title)}</span><span class="trail-summary">${escapeHTML(s.result)}</span></span><img class="trail-character" src="assets/characters/${STAGE_CHARACTERS[i]}" alt="" width="88" height="104"><span class="trail-badge">${completed(i)?'Completada':'Por completar'}</span><span class="chevron" aria-hidden="true"></span></button></h3><div id="trail-body-${i}" class="trail-body" role="region" aria-labelledby="trail-toggle-${i}" ${open?'':'hidden'}>${open?stageBody(i):''}</div></div></article>`;}).join('');}
-function updateTrailProgress(){document.querySelectorAll('[data-trail-stage]').forEach(el=>{const i=Number(el.dataset.trailStage),done=completed(i);el.classList.toggle('complete',done);el.querySelector('.trail-pin').textContent=done?'✓':String(i+1).padStart(2,'0');el.querySelector('.trail-badge').textContent=done?'Completada':'Por completar';});}
+function renderTrail(){$('trail').innerHTML=STAGES.map((s,i)=>{const open=trailOpen===i;return `<article class="trail-station ${open?'open':''} ${completed(i)?'complete':''}" data-trail-stage="${i}"><div class="trail-pin" aria-hidden="true">${completed(i)?'✓':String(i+1).padStart(2,'0')}</div><div class="trail-card"><h3 class="trail-title"><button id="trail-toggle-${i}" class="trail-toggle" type="button" data-trail-toggle="${i}" aria-expanded="${open}" aria-controls="trail-body-${i}"><span class="trail-title-text"><span class="trail-phase">${escapeHTML(PHASES[i])}</span><span class="trail-name">${escapeHTML(s.title)}</span><span class="trail-summary">${escapeHTML(s.result)}</span></span><img class="trail-character" src="assets/characters/${STAGE_CHARACTERS[i]}" alt="" width="88" height="104"><span class="trail-badge">${!authToken?'🔒 Bloqueada':completed(i)?'Completada':'Por completar'}</span><span class="chevron" aria-hidden="true"></span></button></h3><div id="trail-body-${i}" class="trail-body" role="region" aria-labelledby="trail-toggle-${i}" ${open?'':'hidden'}>${open?stageBody(i):''}</div></div></article>`;}).join('');}
+function updateTrailProgress(){document.querySelectorAll('[data-trail-stage]').forEach(el=>{const i=Number(el.dataset.trailStage),done=completed(i);el.classList.toggle('complete',done);el.querySelector('.trail-pin').textContent=done?'✓':String(i+1).padStart(2,'0');el.querySelector('.trail-badge').textContent=!authToken?'🔒 Bloqueada':done?'Completada':'Por completar';});}
 function renderViews(){$('trail').hidden=state.view!=='trail';$('map-workspace').hidden=state.view!=='map';document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===state.view)));}
 function render(){$('system').value=state.system;$('residence').value=state.residence;$('course').href=URLS[state.system];$('benefits').textContent=state.system==='elite'?'Élite: 12 meses de Discord · 2 sesiones 1 a 1 al mes · 24 sesiones durante el acceso · clases especiales según calendario.':'Definitivo: 6 meses de Discord · 1 sesión 1 a 1 al mes · 6 sesiones durante el acceso.';$('session-info').textContent=state.system==='elite'?'Tu sistema Élite incluye 2 sesiones individuales al mes durante 12 meses.':'Tu Sistema Definitivo incluye 1 sesión individual al mes durante 6 meses.';renderProgress();renderMilestones();renderStations();renderDetail();renderTrail();renderViews();}
 $('system').addEventListener('change',e=>{state.system=e.target.value;save();render();syncProfileToServer();});$('residence').addEventListener('change',e=>{state.residence=e.target.value;save();render();syncProfileToServer();});
-document.addEventListener('click',e=>{const view=e.target.closest('button[data-view]');if(view){state.view=view.dataset.view;save();renderViews();return;}const toggle=e.target.closest('button[data-trail-toggle]');if(toggle){const i=Number(toggle.dataset.trailToggle);if(trailOpen===i){trailOpen=null;renderTrail();}else selectStage(i);$('trail-toggle-'+i).focus({preventScroll:true});return;}const b=e.target.closest('button[data-stage]');if(b&&!b.disabled)selectStage(Number(b.dataset.stage),b.closest('#detail,.trail-body')!==null||window.innerWidth<761);});
+document.addEventListener('click',e=>{
+  if(!authToken&&e.target.closest('.task')){
+    e.preventDefault();
+    notice('🔒 Inicia sesión con tu cuenta de alumno para marcar tareas.');
+    openLoginDialog();
+    return;
+  }
+  const view=e.target.closest('button[data-view]');
+  if(view){state.view=view.dataset.view;save();renderViews();return;}
+  const toggle=e.target.closest('button[data-trail-toggle]');
+  if(toggle){const i=Number(toggle.dataset.trailToggle);if(trailOpen===i){trailOpen=null;renderTrail();}else selectStage(i);$('trail-toggle-'+i).focus({preventScroll:true});return;}
+  const b=e.target.closest('button[data-stage]');
+  if(b&&!b.disabled)selectStage(Number(b.dataset.stage),b.closest('#detail,.trail-body')!==null||window.innerWidth<761);
+});
 document.addEventListener('change',e=>{if(e.target.matches('input[data-task]'))setTask(Number(e.target.dataset.taskStage),e.target.dataset.task,e.target.checked);});
 $('resume').addEventListener('click',()=>{const next=TITLES.findIndex((_,i)=>!completed(i));selectStage(next===-1?11:next,true);});
 $('reset').addEventListener('click',()=>$('reset-dialog').showModal());$('cancel-reset').addEventListener('click',()=>$('reset-dialog').close());$('confirm-reset').addEventListener('click',()=>{state.checks={};state.selected=0;trailOpen=0;save();render();$('reset-dialog').close();notice('Tu progreso se reinició en este dispositivo.');});
@@ -227,6 +272,19 @@ function showAuthSuccess(msg){
   successBox.style.display='block';
 }
 
+function openLoginDialog(){
+  const emailInput=$('student-email-input');
+  if(emailInput)emailInput.value=currentStudent.email||'';
+  const errBox=$('auth-error');
+  const succBox=$('auth-success');
+  if(errBox){errBox.style.display='none';errBox.textContent='';}
+  if(succBox){succBox.style.display='none';succBox.textContent='';}
+  const submitBtn=$('student-dialog-submit');
+  if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar enlace mágico ✨';}
+  const dlg=$('student-dialog');
+  if(dlg&&typeof dlg.showModal==='function')dlg.showModal();
+}
+
 async function logout(){
   const tokenToRevoke=authToken;
   authToken='';
@@ -235,6 +293,7 @@ async function logout(){
   localStorage.removeItem('vcp-student-email');
   localStorage.removeItem('vcp-student-name');
   updateSyncStatus('');
+  render();
   notice('Has cerrado sesión correctamente.');
 
   if(tokenToRevoke){
@@ -253,17 +312,11 @@ if($('user-btn'))$('user-btn').addEventListener('click',()=>{
   if(authToken&&currentStudent.email){
     notice(`Sesión activa: ${currentStudent.name||currentStudent.email}`);
   }else{
-    const emailInput=$('student-email-input');
-    if(emailInput)emailInput.value=currentStudent.email||'';
-    const errBox=$('auth-error');
-    const succBox=$('auth-success');
-    if(errBox){errBox.style.display='none';errBox.textContent='';}
-    if(succBox){succBox.style.display='none';succBox.textContent='';}
-    const submitBtn=$('student-dialog-submit');
-    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar enlace mágico ✨';}
-    $('student-dialog').showModal();
+    openLoginDialog();
   }
 });
+
+if($('lock-login-btn'))$('lock-login-btn').addEventListener('click',openLoginDialog);
 
 if($('logout-btn'))$('logout-btn').addEventListener('click',logout);
 
@@ -317,8 +370,8 @@ if($('student-form'))$('student-form').addEventListener('submit',async e=>{
   }
 });
 
-render();
 updateSyncStatus(authToken?'syncing':'');
+render();
 fetchProgressFromServer();
 if(!saveAvailable)$('save-note').textContent='Este navegador no permite guardar el avance. Tus marcas no se conservarán al cerrar la página.';
 const modelContext=document.modelContext;
