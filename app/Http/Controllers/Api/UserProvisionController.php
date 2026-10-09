@@ -18,11 +18,23 @@ class UserProvisionController extends Controller
      */
     public function store(Request $request, MagicLinkService $magicLinkService): JsonResponse
     {
+        // Support common case variations from external webhook providers (e.g. GoHighLevel)
+        if ($request->has('Country') && ! $request->has('country')) {
+            $request->merge(['country' => $request->input('Country')]);
+        }
+        if ($request->has('Residence') && ! $request->has('residence')) {
+            $request->merge(['residence' => $request->input('Residence')]);
+        }
+        if (! $request->has('name') && $request->has('full_name')) {
+            $request->merge(['name' => $request->input('full_name')]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255'],
             'system' => ['nullable', 'in:medium,elite'],
-            'residence' => ['nullable', 'in:usa,outside'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'residence' => ['nullable', 'string', 'max:255'],
             'send_magic_link' => ['nullable', 'boolean'],
         ], [
             'name.required' => 'El nombre es obligatorio.',
@@ -52,9 +64,22 @@ class UserProvisionController extends Controller
         if (! empty($validated['system'])) {
             $student->system = $validated['system'];
         }
-        if (! empty($validated['residence'])) {
-            $student->residence = $validated['residence'];
+
+        $resolvedResidence = $this->determineResidence(
+            $validated['country'] ?? null,
+            $validated['residence'] ?? null
+        );
+
+        if ($resolvedResidence !== null) {
+            $student->residence = $resolvedResidence;
         }
+
+        if (! empty($validated['country'])) {
+            $metadata = $student->metadata ?? [];
+            $metadata['country'] = trim($validated['country']);
+            $student->metadata = $metadata;
+        }
+
         if (! $student->exists) {
             $student->last_active_at = now();
         }
@@ -78,9 +103,53 @@ class UserProvisionController extends Controller
                 'id' => $student->id,
                 'system' => $student->system,
                 'residence' => $student->residence,
+                'country' => $student->metadata['country'] ?? null,
                 'registration_status' => $student->registration_status,
             ],
             'magic_link_sent' => $magicLinkSent,
         ], $isNewUser ? 201 : 200);
+    }
+
+    /**
+     * Determine whether the student residence is 'usa' or 'outside'.
+     */
+    protected function determineResidence(?string $country, ?string $residence = null): ?string
+    {
+        if (filled($country)) {
+            $cleaned = mb_strtolower(trim($country));
+            $cleaned = trim(preg_replace('/[.,]+/', '', $cleaned));
+            $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+
+            $usaAliases = [
+                'united states',
+                'united states of america',
+                'usa',
+                'us',
+                'estados unidos',
+                'estados unidos de america',
+                'eeuu',
+                'ee uu',
+                'eua',
+            ];
+
+            if (in_array($cleaned, $usaAliases, true)) {
+                return 'usa';
+            }
+
+            if (str_starts_with($cleaned, 'united states') || str_starts_with($cleaned, 'estados unidos')) {
+                return 'usa';
+            }
+
+            return 'outside';
+        }
+
+        if (filled($residence)) {
+            $lowerResidence = strtolower(trim($residence));
+            if (in_array($lowerResidence, ['usa', 'outside'], true)) {
+                return $lowerResidence;
+            }
+        }
+
+        return null;
     }
 }

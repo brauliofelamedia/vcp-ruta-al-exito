@@ -22,17 +22,18 @@ Para registrar un nuevo estudiante cuando compra el curso o se da de alta en GoH
   "name": "Juan Perez",
   "email": "juan@ejemplo.com",
   "system": "medium",
-  "residence": "usa",
+  "country": "United States",
   "send_magic_link": true
 }
 ```
 
 | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|
-| `name` | string | **Sí** | Nombre completo del alumno. |
-| `email` | string | **Sí** | Correo electrónico del alumno. |
+| `name` | string | **Sí** | Nombre completo del alumno (también acepta `full_name` o `Name`). |
+| `email` | string | **Sí** | Correo electrónico del alumno (también acepta `Email`). |
 | `system` | string | No | `medium` (por defecto) o `elite`. |
-| `residence` | string | No | `usa` (por defecto) o `outside`. |
+| `country` | string | No | País del contacto (ej. `"United States"`, `"Colombia"`). Si es EE. UU. (ej. `"United States"`, `"USA"`, `"EEUU"`), asigna residencia `usa`. Cualquier otro país asigna `outside`. |
+| `residence` | string | No | `usa` o `outside` (opcional si ya envías `country`, mantenido por retrocompatibilidad). |
 | `send_magic_link` | boolean | No | Si es `true`, envía de inmediato el webhook a GHL con el enlace mágico de bienvenida. |
 
 #### Respuesta Exitosa (`201 Created` o `200 OK`)
@@ -49,6 +50,7 @@ Para registrar un nuevo estudiante cuando compra el curso o se da de alta en GoH
     "id": 15,
     "system": "medium",
     "residence": "usa",
+    "country": "United States",
     "registration_status": "approved"
   },
   "magic_link_sent": true

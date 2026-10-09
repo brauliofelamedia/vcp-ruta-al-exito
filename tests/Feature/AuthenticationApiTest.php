@@ -58,6 +58,40 @@ class AuthenticationApiTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'maria@vendecomopro.com']);
     }
 
+    public function test_it_maps_country_united_states_to_usa_residence(): void
+    {
+        $response = $this->postJson('/api/v1/users', [
+            'name' => 'John Doe',
+            'email' => 'john.doe@example.com',
+            'Country' => 'United States',
+        ])->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('student.residence', 'usa')
+            ->assertJsonPath('student.country', 'United States');
+
+        $this->assertDatabaseHas('students', [
+            'email' => 'john.doe@example.com',
+            'residence' => 'usa',
+        ]);
+    }
+
+    public function test_it_maps_foreign_country_to_outside_residence(): void
+    {
+        $response = $this->postJson('/api/v1/users', [
+            'name' => 'Carlos Gomez',
+            'email' => 'carlos@example.com',
+            'country' => 'Colombia',
+        ])->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('student.residence', 'outside')
+            ->assertJsonPath('student.country', 'Colombia');
+
+        $this->assertDatabaseHas('students', [
+            'email' => 'carlos@example.com',
+            'residence' => 'outside',
+        ]);
+    }
+
     public function test_it_returns_404_when_requesting_magic_link_for_unregistered_email(): void
     {
         $this->postJson('/api/v1/auth/magic-link', [

@@ -27,3 +27,7 @@ Homestead.yaml
 Thumbs.db
 /laravel-staging/
 /legacy/node_modules/
+/.agents
+/.amp
+/.claude
+/.grok
