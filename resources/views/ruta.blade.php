@@ -19,7 +19,18 @@
     <a class="text-link" href="#recursos">Guías en PDF ↗</a>
   </header>
   <main>
-    <section class="intro" aria-labelledby="title"><div><p class="eyebrow">SISTEMA DEFINITIVO + ÉLITE · GUÍA DE EXPEDICIÓN</p><h1 id="title">TU RUTA DEL ÉXITO<br><span>EN AMAZON.</span></h1><p>No se trata de terminar videos. Se trata de avanzar por logros,<br class="desktop-break"> desde tus accesos hasta tu primera venta, pago y utilidad real.</p></div><img class="explorer" src="assets/explorer.webp" alt="Explorador de la ruta del éxito" width="170" height="185"></section>
+    <section class="intro" aria-labelledby="title">
+      <div class="intro-copy">
+        <p class="eyebrow">SISTEMA DEFINITIVO + ÉLITE · GUÍA DE EXPEDICIÓN</p>
+        <h1 id="title">TU RUTA DEL ÉXITO<br><span>EN AMAZON.</span></h1>
+        <p>No se trata de terminar videos. Se trata de avanzar por logros,<br class="desktop-break"> desde tus accesos hasta tu primera venta, pago y utilidad real.</p>
+        <div class="hero-mantra">AVANZA POR LOGROS, NO POR PRISA.</div>
+      </div>
+      <div class="character-duo" aria-label="Personajes oficiales de VendeComoPro">
+        <img class="character-woman" src="assets/characters/woman-teaching.png" alt="Coach VendeComoPro enseñando" width="300" height="440">
+        <img class="character-man" src="assets/characters/man-folder.png" alt="Estudiante VendeComoPro listo para avanzar" width="260" height="430">
+      </div>
+    </section>
     <section class="profile" aria-label="Personaliza tu ruta"><label>Tu sistema<select id="system"><option value="medium">Sistema Definitivo · Medium</option><option value="elite">Sistema Élite · VIP avanzado</option></select></label><label>Tu residencia<select id="residence"><option value="usa">Dentro de Estados Unidos</option><option value="outside">Fuera de Estados Unidos</option></select></label><a id="course" class="button" target="_blank" rel="noopener noreferrer">Abrir mi curso ↗</a><div id="benefits" class="benefits"></div></section>
     <section class="progress-card" aria-label="Tu progreso"><div><strong id="progress-label">0 de 12 estaciones completas</strong><span id="task-count">0 tareas completadas</span></div><progress id="progress" value="0" max="12" aria-label="Estaciones completadas"></progress><button id="resume" class="text-link" type="button">Mi próxima estación →</button></section>
     <p class="save-note" id="save-note">Tu avance se guarda solo en este navegador y dispositivo. Conecta tu cuenta arriba para sincronizar con tus coaches.</p>
@@ -27,7 +38,24 @@
     <section class="route-heading" aria-labelledby="route-title"><div><p class="eyebrow">AVANZA POR LOGROS, NO POR PRISA</p><h2 id="route-title">TU MUNDO DE EXPEDICIÓN</h2><p>Abre una estación. Completa su misión. Continúa a tu ritmo.</p></div><div class="view-switch" role="group" aria-label="Vista de la ruta"><button type="button" data-view="trail" aria-pressed="true">Ruta paso a paso</button><button type="button" data-view="map" aria-pressed="false">Mapa de expedición</button></div></section>
     <section id="trail" class="trail" aria-label="Ruta paso a paso"></section>
     <div id="map-workspace" class="workspace" hidden>
-      <section class="journey" aria-label="Mapa de la expedición"><div class="section-head"><h2>EL MAPA DE TU ÉXITO</h2><span>12 ESTACIONES</span></div><div class="map"><img src="assets/map.webp" alt="Mapa ilustrado con doce estaciones conectadas, desde el campamento base hasta la cumbre" width="1672" height="941"><div id="map-nodes"></div></div><p class="map-tip">Selecciona un número en el mapa o una estación para ver tu misión.</p><nav id="stations" aria-label="Estaciones de la ruta"></nav></section>
+      <section class="journey" aria-label="Mapa de la expedición">
+        <div class="section-head">
+          <h2>EL MAPA DE TU ÉXITO</h2>
+          <span>12 ESTACIONES</span>
+        </div>
+        <div class="map brand-map">
+          <svg class="route-line" viewBox="0 0 1000 600" role="img" aria-label="Camino conectado de doce estaciones">
+            <path d="M95 190 C170 120 230 130 300 160 S430 210 515 165 S680 105 790 155 S930 225 890 300 C850 365 725 340 655 350 S475 395 360 350 S175 360 140 465 C185 540 315 515 430 485 S670 455 820 495" fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-dasharray="18 18"/>
+          </svg>
+          <span class="map-label map-label-start">CAMPAMENTO BASE</span>
+          <span class="map-label map-label-finish">PAGO + UTILIDAD</span>
+          <img class="map-character map-character-coach" src="assets/characters/woman-pointing.png" alt="Coach VendeComoPro señalando la ruta" width="220" height="390">
+          <img class="map-character map-character-student" src="assets/characters/man-action.png" alt="Estudiante VendeComoPro avanzando" width="260" height="420">
+          <div id="map-nodes"></div>
+        </div>
+        <p class="map-tip">Selecciona un número en el mapa o una estación para ver tu misión.</p>
+        <nav id="stations" aria-label="Estaciones de la ruta"></nav>
+      </section>
       <section id="detail" class="detail" tabindex="-1" aria-label="Detalle de la estación"></section>
     </div>
     <section class="learning" aria-labelledby="class-title"><div><p class="eyebrow">ACOMPAÑAMIENTO EN VIVO</p><h2 id="class-title">PRIMERO LAS BASES.<br><span>DESPUÉS, LAS CLASES.</span></h2><p>Te recomendamos completar como mínimo el <strong>módulo 8</strong> antes de entrar regularmente a las clases grupales. Así podrás entender los temas y aprovechar tus preguntas.</p></div><div class="class-card"><div><b>Lunes</b><span>Análisis, búsqueda, desbloqueos y mayoreo.</span></div><div><b>Martes</b><span>Preguntas y respuestas.</span></div><div><b>Miércoles</b><span>Seller Central, inventario y apertura de cuenta.</span></div><p><strong>7:00 p. m. · hora de Miami</strong><br>Enlace: <b>#link-clase-en-vivo</b> · Fechas: <b>#calendario-m</b></p></div><div class="recordings"><h3>Resuelve tu duda con una grabación</h3><p>Ambos sistemas tienen acceso a Grabaciones de Zoom. Usa <strong>Search</strong> y escribe una palabra clave: <b>apertura, análisis, búsqueda, envíos, cupones, cashback, pagos o Seller Central</b>. Después, lleva las dudas que queden a la clase en vivo.</p><a class="button secondary" href="https://class.vendecomopro.net/products/grabaciones-de-zoom" target="_blank" rel="noopener noreferrer">Abrir grabaciones de Zoom ↗</a></div></section>
