@@ -43,4 +43,8 @@ return [
         'location_id' => env('GHL_LOCATION_ID'),
     ],
 
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];

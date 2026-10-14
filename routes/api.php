@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\InactivityCronController;
 use App\Http\Controllers\Api\ProgressController;
 use App\Http\Controllers\Api\RegistrationRequestController;
 use App\Http\Controllers\Api\UserProvisionController;
@@ -10,6 +11,9 @@ Route::prefix('v1')->group(function (): void {
     // External user provisioning endpoint (for GoHighLevel, webhooks, admin)
     Route::post('/users', [UserProvisionController::class, 'store']);
     Route::post('/registration-requests', [RegistrationRequestController::class, 'store']);
+
+    // External cron trigger for shared hosting (e.g. cron-job.org, EasyCron)
+    Route::match(['get', 'post'], '/cron/notify-inactive', [InactivityCronController::class, 'trigger']);
 
     Route::middleware('throttle:10,1')->group(function (): void {
         // Passwordless magic link login request
