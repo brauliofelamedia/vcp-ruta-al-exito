@@ -47,4 +47,8 @@ return [
         'secret' => env('CRON_SECRET'),
     ],
 
+    'supervision' => [
+        'token' => env('SUPERVISION_TOKEN', env('CRON_SECRET')),
+    ],
+
 ];
