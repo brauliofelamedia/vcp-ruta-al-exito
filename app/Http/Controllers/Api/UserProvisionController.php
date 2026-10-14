@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\GoHighLevelService;
 use App\Services\MagicLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ class UserProvisionController extends Controller
     /**
      * Endpoint to provision/register a user directly (e.g. from GoHighLevel, Zapier, Webhook, Admin).
      */
-    public function store(Request $request, MagicLinkService $magicLinkService): JsonResponse
+    public function store(Request $request, MagicLinkService $magicLinkService, GoHighLevelService $goHighLevelService): JsonResponse
     {
         // Support common case variations from external webhook providers (e.g. GoHighLevel)
         if ($request->has('Country') && ! $request->has('country')) {
@@ -84,6 +85,15 @@ class UserProvisionController extends Controller
             $student->last_active_at = now();
         }
         $student->save();
+
+        if ($goHighLevelService->hasApiCredentials()) {
+            $contact = $goHighLevelService->findContactByEmail($email);
+            if ($contact !== null && ! empty($contact['id'])) {
+                $student->ghl_contact_id = (string) $contact['id'];
+                $student->save();
+                $goHighLevelService->addTagToContact((string) $contact['id'], 'rutadelexito-website');
+            }
+        }
 
         $magicLinkSent = false;
         if (! empty($validated['send_magic_link'])) {

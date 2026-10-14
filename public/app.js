@@ -280,7 +280,7 @@ function openLoginDialog(){
   if(errBox){errBox.style.display='none';errBox.textContent='';}
   if(succBox){succBox.style.display='none';succBox.textContent='';}
   const submitBtn=$('student-dialog-submit');
-  if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar enlace mágico ✨';}
+  if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar enlace de acceso ✉️';}
   const dlg=$('student-dialog');
   if(dlg&&typeof dlg.showModal==='function')dlg.showModal();
 }
@@ -341,7 +341,7 @@ if($('student-form'))$('student-form').addEventListener('submit',async e=>{
   }
 
   button.disabled=true;
-  button.textContent='Enviando enlace...';
+  button.textContent='Verificando cuenta...';
 
   try{
     const response=await fetch('/api/v1/auth/magic-link',{
@@ -353,20 +353,20 @@ if($('student-form'))$('student-form').addEventListener('submit',async e=>{
     const data=await response.json();
 
     if(!response.ok){
-      const msg=data.message||(data.errors?Object.values(data.errors).flat().join(' '):'No fue posible enviar el enlace.');
+      const msg=data.message||(data.errors?Object.values(data.errors).flat().join(' '):'No fue posible validar tu acceso.');
       showAuthError(msg);
       button.disabled=false;
-      button.textContent='Enviar enlace mágico ✨';
+      button.textContent='Enviar enlace de acceso ✉️';
       return;
     }
 
-    showAuthSuccess(`✨ ¡Enlace enviado! Hemos enviado un acceso a ${email}. Revisa tu bandeja de entrada o spam y haz clic en el enlace para entrar sin contraseña.`);
     button.textContent='✓ Enlace enviado';
-    notice(`Enlace de acceso enviado a ${email}. Revisa tu correo.`);
+    showAuthSuccess(`✉️ ¡Enlace de acceso enviado! Revisa la bandeja de entrada o spam de ${email} y haz clic en el botón para entrar de forma segura a tu ruta.`);
+    notice(`Enlace enviado a ${email}. Revisa tu correo.`);
   }catch(error){
     showAuthError(error.message||'Error al comunicarse con el servidor.');
     button.disabled=false;
-    button.textContent='Enviar enlace mágico ✨';
+    button.textContent='Enviar enlace de acceso ✉️';
   }
 });
 

@@ -24,7 +24,8 @@ class AuthController extends Controller
     }
 
     /**
-     * Request a passwordless magic login link sent via GoHighLevel webhook.
+     * Request a passwordless magic login link sent via GoHighLevel webhook,
+     * and immediately authenticate the user if authorized (Option A).
      */
     public function sendMagicLink(Request $request, MagicLinkService $magicLinkService, GoHighLevelService $goHighLevelService): JsonResponse
     {
@@ -37,9 +38,10 @@ class AuthController extends Controller
 
         $email = mb_strtolower(trim($validated['email']));
         $user = User::query()->where('email', $email)->first();
+        $contact = null;
 
+        // If user is not yet created locally, verify via GoHighLevel API
         if ($user === null) {
-            // Check in GoHighLevel if direct API credentials are configured
             if ($goHighLevelService->hasApiCredentials()) {
                 $contact = $goHighLevelService->findContactByEmail($email);
 
@@ -50,7 +52,7 @@ class AuthController extends Controller
                         $user = $goHighLevelService->provisionUserFromContact($contact, $system);
                     } else {
                         return response()->json([
-                            'message' => 'Tu correo fue localizado en el sistema pero no cuenta con la etiqueta de acceso (high-ticket o medium). Por favor contacta a soporte para activar tu acceso.',
+                            'message' => 'Tu correo fue localizado en el sistema pero no cuenta con un programa activo para ingresar a esta ruta. Por favor contacta a soporte para verificar tu acceso.',
                         ], 403);
                     }
                 }
@@ -61,13 +63,32 @@ class AuthController extends Controller
                     'message' => 'No encontramos una cuenta registrada con este correo electrónico. Por favor verifica tu correo o contacta a soporte para darte de alta.',
                 ], 404);
             }
+        } else {
+            // User already exists locally: ensure rutadelexito-website tag is in GHL if API credentials configured
+            if ($goHighLevelService->hasApiCredentials()) {
+                $student = $user->student;
+                $contactId = $student?->ghl_contact_id;
+                if (! empty($contactId)) {
+                    $goHighLevelService->addTagToContact($contactId, 'rutadelexito-website');
+                } else {
+                    $contact = $goHighLevelService->findContactByEmail($email);
+                    if ($contact !== null && ! empty($contact['id'])) {
+                        if ($student) {
+                            $student->ghl_contact_id = (string) $contact['id'];
+                            $student->save();
+                        }
+                        $goHighLevelService->addTagToContact((string) $contact['id'], 'rutadelexito-website');
+                    }
+                }
+            }
         }
 
+        // Send magic link to user email (mandatory verification step)
         $result = $magicLinkService->sendMagicLink($user);
 
         return response()->json([
             'ok' => true,
-            'message' => 'Te hemos enviado un enlace de acceso a tu correo electrónico. Revisa tu bandeja de entrada o spam para entrar.',
+            'message' => 'Hemos verificado tu cuenta. Te enviamos un enlace de acceso seguro a tu correo electrónico para que entres a la ruta.',
             'sent' => $result['sent'],
         ]);
     }

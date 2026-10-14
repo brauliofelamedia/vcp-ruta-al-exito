@@ -78,10 +78,10 @@
   <dialog id="student-dialog" class="auth-dialog">
     <div class="auth-dialog-header">
       <h2 id="auth-dialog-title">Acceder a mi cuenta</h2>
-      <p id="auth-dialog-desc">Ingresa el correo con el que estás dado de alta en la academia para recibir un enlace de acceso directo sin contraseña.</p>
+      <p id="auth-dialog-desc">Ingresa el correo registrado en la academia para recibir tu enlace seguro de acceso directo sin contraseña.</p>
     </div>
     <div id="auth-error" class="auth-error-msg" role="alert" style="display:none"></div>
-    <div id="auth-success" class="auth-success-msg" role="status" style="display:none;background:#14532d30;border:1px solid #22c55e66;color:#86efac;padding:12px 14px;border-radius:8px;font-size:0.88rem;line-height:1.5;margin-bottom:16px"></div>
+    <div id="auth-success" class="auth-success-msg" role="status" style="display:none"></div>
     <form id="student-form" method="dialog" novalidate>
       <div class="form-group">
         <label for="student-email-input">Correo electrónico registrado *</label>
@@ -89,10 +89,10 @@
       </div>
       <div class="dialog-actions">
         <button type="button" id="student-dialog-cancel" class="button secondary">Cerrar</button>
-        <button type="submit" id="student-dialog-submit" class="button">Enviar enlace mágico ✨</button>
+        <button type="submit" id="student-dialog-submit" class="button">Enviar enlace de acceso ✉️</button>
       </div>
       <p style="font-size:0.8rem;color:var(--muted);margin-top:18px;text-align:center;line-height:1.4">
-        El registro público está cerrado. Solo pueden acceder estudiantes dados de alta por la academia. Si acabas de adquirir el curso y no puedes ingresar, contacta a tu asesor.
+        Por seguridad, validaremos tu cuenta y te enviaremos un enlace a tu bandeja de entrada para verificar que eres tú.
       </p>
     </form>
   </dialog>

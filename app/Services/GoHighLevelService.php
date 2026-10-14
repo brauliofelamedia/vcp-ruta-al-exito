@@ -225,7 +225,37 @@ class GoHighLevelService
         }
         $student->save();
 
+        // Ensure rutadelexito-website tag is applied in GHL
+        if (! empty($contact['id'])) {
+            $this->addTagToContact((string) $contact['id'], 'rutadelexito-website');
+        }
+
         return $user;
+    }
+
+    /**
+     * Add a tag to a contact in GoHighLevel.
+     */
+    public function addTagToContact(string $contactId, string $tag): bool
+    {
+        if (! $this->hasApiCredentials() || blank($contactId)) {
+            return false;
+        }
+
+        try {
+            $response = $this->client()
+                ->withToken(config('services.gohighlevel.api_key'))
+                ->withHeaders(['Version' => '2021-07-28'])
+                ->post("https://services.leadconnectorhq.com/contacts/{$contactId}/tags", [
+                    'tags' => [$tag],
+                ]);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning("Failed to add tag '{$tag}' to GHL contact {$contactId}: ".$e->getMessage());
+
+            return false;
+        }
     }
 
     private function client(): PendingRequest

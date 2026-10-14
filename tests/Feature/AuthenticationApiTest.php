@@ -118,10 +118,11 @@ class AuthenticationApiTest extends TestCase
                     'tags' => ['cliente', 'high-ticket'],
                 ],
             ], 200),
+            'https://services.leadconnectorhq.com/contacts/ghl-contact-999/tags' => Http::response(['tags' => ['rutadelexito-website']], 200),
             'https://ghl.test/magic-link-webhook' => Http::response([], 200),
         ]);
 
-        $this->postJson('/api/v1/auth/magic-link', [
+        $response = $this->postJson('/api/v1/auth/magic-link', [
             'email' => 'sara@example.com',
         ])->assertOk()
             ->assertJsonPath('ok', true)
@@ -141,6 +142,12 @@ class AuthenticationApiTest extends TestCase
             'ghl_contact_id' => 'ghl-contact-999',
             'registration_status' => 'approved',
         ]);
+
+        // Verify tag rutadelexito-website was sent to GHL
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'contacts/ghl-contact-999/tags')
+                && $request['tags'] === ['rutadelexito-website'];
+        });
     }
 
     public function test_it_auto_provisions_user_from_ghl_with_medium_tag(): void
@@ -162,10 +169,11 @@ class AuthenticationApiTest extends TestCase
                     'tags' => ['medium'],
                 ],
             ], 200),
+            'https://services.leadconnectorhq.com/contacts/ghl-contact-555/tags' => Http::response(['tags' => ['rutadelexito-website']], 200),
             'https://ghl.test/magic-link-webhook' => Http::response([], 200),
         ]);
 
-        $this->postJson('/api/v1/auth/magic-link', [
+        $response = $this->postJson('/api/v1/auth/magic-link', [
             'email' => 'luis@example.com',
         ])->assertOk()
             ->assertJsonPath('ok', true)
@@ -179,6 +187,12 @@ class AuthenticationApiTest extends TestCase
             'ghl_contact_id' => 'ghl-contact-555',
             'registration_status' => 'approved',
         ]);
+
+        // Verify tag rutadelexito-website was sent to GHL
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'contacts/ghl-contact-555/tags')
+                && $request['tags'] === ['rutadelexito-website'];
+        });
     }
 
     public function test_it_rejects_ghl_contact_without_required_tags(): void
@@ -202,7 +216,7 @@ class AuthenticationApiTest extends TestCase
         $this->postJson('/api/v1/auth/magic-link', [
             'email' => 'lead@example.com',
         ])->assertStatus(403)
-            ->assertJsonPath('message', 'Tu correo fue localizado en el sistema pero no cuenta con la etiqueta de acceso (high-ticket o medium). Por favor contacta a soporte para activar tu acceso.');
+            ->assertJsonPath('message', 'Tu correo fue localizado en el sistema pero no cuenta con un programa activo para ingresar a esta ruta. Por favor contacta a soporte para verificar tu acceso.');
 
         $this->assertDatabaseMissing('users', ['email' => 'lead@example.com']);
     }
