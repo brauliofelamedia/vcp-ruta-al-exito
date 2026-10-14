@@ -150,7 +150,7 @@ class MagicLinkService
     {
         $safeName = htmlspecialchars($name ?: 'Estudiante', ENT_QUOTES, 'UTF-8');
         $safeUrl = htmlspecialchars($magicLinkUrl, ENT_QUOTES, 'UTF-8');
-        $logoUrl = 'https://rutadelexito.vendecomopro.net/assets/vcp-logo.png';
+        $logoUrl = 'https://rutadelexito.vendecomopro.net/assets/vcp-logo.png?v=2';
 
         return <<<HTML
 <!DOCTYPE html>
@@ -171,7 +171,7 @@ class MagicLinkService
           <tr>
             <td align="center" style="padding:32px 24px 22px;background-color:#ffffff;border-top:4px solid #ff8500;border-bottom:1px solid #f1f5f9;">
               <a href="{$safeUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">
-                <img src="{$logoUrl}" alt="VendeComoPro" width="130" height="52" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;object-fit:contain;">
+                <img src="{$logoUrl}" alt="VendeComoPro" width="140" style="display:block;margin:0 auto;width:140px;max-width:140px;height:auto;border:0;outline:none;text-decoration:none;" border="0">
               </a>
               <div style="margin-top:10px;font-size:11px;font-weight:800;color:#64748b;letter-spacing:2px;text-transform:uppercase;">
                 ACADEMIA &middot; RUTA DEL &Eacute;XITO
