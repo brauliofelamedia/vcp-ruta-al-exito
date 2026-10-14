@@ -39,7 +39,12 @@ class MagicLinkService
             'expires_at' => $expiresAt,
         ]);
 
-        $url = url('/auth/magic-login?token='.$rawToken.'&email='.urlencode($user->email));
+        $baseUrl = config('app.url');
+        if (blank($baseUrl) || str_contains($baseUrl, 'localhost') || str_contains($baseUrl, '127.0.0.1')) {
+            $baseUrl = 'https://rutadelexito.vendecomopro.net';
+        }
+
+        $url = rtrim($baseUrl, '/').'/auth/magic-login?token='.$rawToken.'&email='.urlencode($user->email);
 
         return [
             'rawToken' => $rawToken,
