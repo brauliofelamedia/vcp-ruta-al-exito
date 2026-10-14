@@ -172,8 +172,8 @@ class InactivityNotificationService
         $percentage = (int) ($student->progress_percentage ?? 0);
         $stationIndex = (int) ($student->current_station ?: 1);
 
-        // Logo URL: point to the active production domain with cache buster
-        $logoUrl = 'https://rutadelexito.vendecomopro.net/assets/vcp-logo.png?v=2';
+        // Logo URL: direct hosted CDN asset
+        $logoUrl = 'https://vcp-ruta-del-exito.vercel.app/assets/vcp-logo.png';
 
         return <<<HTML
 <!DOCTYPE html>

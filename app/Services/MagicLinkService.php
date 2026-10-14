@@ -150,7 +150,7 @@ class MagicLinkService
     {
         $safeName = htmlspecialchars($name ?: 'Estudiante', ENT_QUOTES, 'UTF-8');
         $safeUrl = htmlspecialchars($magicLinkUrl, ENT_QUOTES, 'UTF-8');
-        $logoUrl = 'https://rutadelexito.vendecomopro.net/assets/vcp-logo.png?v=2';
+        $logoUrl = 'https://vcp-ruta-del-exito.vercel.app/assets/vcp-logo.png';
 
         return <<<HTML
 <!DOCTYPE html>
