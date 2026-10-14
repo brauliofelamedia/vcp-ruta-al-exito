@@ -167,13 +167,13 @@ class MagicLinkService
         <!-- Main Card Container (White) -->
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:580px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.06);">
           
-          <!-- Brand Header with Logo -->
+          <!-- Brand Header with Logo on White/Clean Background -->
           <tr>
-            <td align="center" style="padding:32px 24px 20px;background-color:#0c0c0c;border-bottom:3px solid #ff8500;">
+            <td align="center" style="padding:32px 24px 22px;background-color:#ffffff;border-top:4px solid #ff8500;border-bottom:1px solid #f1f5f9;">
               <a href="{$safeUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">
-                <img src="{$logoUrl}" alt="VendeComoPro" width="120" height="68" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;object-fit:contain;">
+                <img src="{$logoUrl}" alt="VendeComoPro" width="130" height="52" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;object-fit:contain;">
               </a>
-              <div style="margin-top:12px;font-size:11px;font-weight:700;color:#c3c3c3;letter-spacing:2px;text-transform:uppercase;">
+              <div style="margin-top:10px;font-size:11px;font-weight:800;color:#64748b;letter-spacing:2px;text-transform:uppercase;">
                 ACADEMIA &middot; RUTA DEL &Eacute;XITO
               </div>
             </td>
